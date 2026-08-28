@@ -1,0 +1,12 @@
+﻿{
+  "main_width": 1920,
+  "main_height": 1080,
+  "main_fps": 30,
+  "main_bitrate": "12M",
+  "sub_width": 640,
+  "sub_height": 360,
+  "sub_bitrate": "2M",
+  "hw_accel": "nvenc",
+  "username": "",
+  "password": ""
+}

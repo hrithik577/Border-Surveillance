@@ -7,7 +7,7 @@ import os
 import cv2
 import time
 import logging
-import random
+import threading
 import numpy as np
 from datetime import datetime
 from flask import Flask, render_template, Response, jsonify, request
@@ -28,6 +28,7 @@ def create_app(video_source=None, model_path=None):
     socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
     actual_model_path = resolve_model_path(model_path)
     detector = ObjectDetector(model_path=actual_model_path)
+    detector_lock = threading.Lock()
 
     pedestrian_video = resolve_video_path("data/videos/top_view_pedestrian.mp4")
     virat_video = resolve_video_path(video_source or "data/videos/VIRAT_S_000001.mp4")
@@ -63,6 +64,7 @@ def create_app(video_source=None, model_path=None):
         response.headers['Access-Control-Allow-Origin'] = '*'
         response.headers['Access-Control-Allow-Headers'] = '*'
         response.headers['Access-Control-Allow-Methods'] = '*'
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
         return response
 
     @app.errorhandler(Exception)
@@ -130,85 +132,12 @@ def create_app(video_source=None, model_path=None):
                 'confidence': '94.2%',
                 'threat_score': 84,
                 'status': 'OPEN'
-            },
-            {
-                'id': 'IBV-240180',
-                'time': '21:41:07 IST',
-                'severity': 'MEDIUM',
-                'event': 'Unknown vehicle loitering',
-                'location': 'Border Road 6',
-                'camera': 'CAM-032',
-                'confidence': '88.6%',
-                'threat_score': 62,
-                'status': 'MONITORING'
-            },
-            {
-                'id': 'IBV-240177',
-                'time': '21:38:22 IST',
-                'severity': 'LOW',
-                'event': 'ANPR watchlist correlation',
-                'location': 'Gate 04 Checkpost',
-                'camera': 'CAM-013',
-                'confidence': '98.4%',
-                'threat_score': 45,
-                'status': 'ACKNOWLEDGED'
             }
         ]
         return jsonify({'alerts': alerts_data})
 
-    @app.route('/api/anpr')
-    def get_anpr():
-        anpr_data = [
-            {'plate': 'KA05XY7821', 'type': 'SUV', 'camera': 'CAM-032', 'location': 'Gate 04', 'time': '21:37 IST', 'confidence': '96.8%', 'status': 'REVIEW REQUIRED', 'flagged': True},
-            {'plate': 'KA01AB1234', 'type': 'SEDAN', 'camera': 'CAM-013', 'location': 'Checkpost 02', 'time': '21:34 IST', 'confidence': '98.4%', 'status': 'CLEAR', 'flagged': False},
-            {'plate': 'DL03CC9081', 'type': 'TRUCK', 'camera': 'CAM-056', 'location': 'Freight Gate', 'time': '21:28 IST', 'confidence': '94.1%', 'status': 'CLEAR', 'flagged': False},
-            {'plate': 'HR26DQ4411', 'type': 'PICKUP', 'camera': 'CAM-091', 'location': 'Sector Bravo', 'time': '21:15 IST', 'confidence': '97.2%', 'status': 'CLEAR', 'flagged': False}
-        ]
-        return jsonify({'anpr': anpr_data})
-
-    @app.route('/api/faces')
-    def get_faces():
-        faces_data = {
-            'total_detected': 142,
-            'authorized': 126,
-            'unknown': 16,
-            'review_required': 3,
-            'recent': [
-                {'id': 'FACE-1092', 'camera': 'CAM-042', 'time': '21:43 IST', 'confidence': '96.7%', 'status': 'UNKNOWN PERSON', 'flagged': True},
-                {'id': 'FACE-1088', 'camera': 'CAM-013', 'time': '21:39 IST', 'confidence': '99.1%', 'status': 'AUTHORIZED PERSONNEL', 'flagged': False},
-                {'id': 'FACE-1085', 'camera': 'CAM-032', 'time': '21:35 IST', 'confidence': '94.5%', 'status': 'UNKNOWN PERSON', 'flagged': True}
-            ]
-        }
-        return jsonify(faces_data)
-
-    @app.route('/api/behaviour')
-    def get_behaviour():
-        behaviour_events = [
-            {'event': 'LOITERING EVENT', 'risk_score': 78, 'confidence': '91.4%', 'camera': 'CAM-013', 'duration': '04:18', 'status': 'ACTIVE'},
-            {'event': 'WRONG-DIRECTION MOVEMENT', 'risk_score': 65, 'confidence': '89.2%', 'camera': 'CAM-056', 'duration': '01:45', 'status': 'MONITORING'},
-            {'event': 'GROUP FORMATION NEAR FENCE', 'risk_score': 82, 'confidence': '93.7%', 'camera': 'CAM-042', 'duration': '03:10', 'status': 'REVIEW'}
-        ]
-        return jsonify({'behaviour': behaviour_events})
-
-    @app.route('/api/evidence')
-    def get_evidence():
-        evidence_records = [
-            {'id': 'EV-9941', 'incident_id': 'IBV-240184', 'camera': 'CAM-042', 'location': 'Sector Alpha / BOP-07', 'time': '21:43:18 IST', 'hash': 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', 'status': 'LOCKED'},
-            {'id': 'EV-9940', 'incident_id': 'IBV-240183', 'camera': 'CAM-071', 'location': 'Border Road 12', 'time': '21:42:51 IST', 'hash': '8f4e9112423985a218d6e9871f9273c509748239081230491823940192834019', 'status': 'ARCHIVED'}
-        ]
-        return jsonify({'evidence': evidence_records})
-
-    @app.route('/api/audit')
-    def get_audit():
-        audit_logs = [
-            {'time': '21:43:23 IST', 'operator': 'OP-014', 'action': 'Incident acknowledged', 'resource': 'IBV-240184', 'status': 'SUCCESS'},
-            {'time': '21:44:01 IST', 'operator': 'OP-014', 'action': 'Evidence locked', 'resource': 'EV-9941', 'status': 'SUCCESS'},
-            {'time': '21:45:12 IST', 'operator': 'OP-014', 'action': 'Patrol alert dispatched', 'resource': 'SECTOR ALPHA / BOP-07', 'status': 'SUCCESS'}
-        ]
-        return jsonify({'audit': audit_logs})
-
     def generate_frames(path):
-        use_file = path and (os.path.exists(path) or str(path).startswith("rtsp://") or str(path).isdigit())
+        use_file = path and os.path.exists(path)
         cap = cv2.VideoCapture(path) if use_file else None
         
         frame_idx = 0
@@ -216,12 +145,18 @@ def create_app(video_source=None, model_path=None):
             frame = None
             if cap and cap.isOpened():
                 ret, frame = cap.read()
-                if not ret:
-                    cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                if not ret or frame is None:
+                    # Continuous Infinite Looping: Re-open video capture on EOF
+                    cap.release()
+                    cap = cv2.VideoCapture(path)
                     ret, frame = cap.read()
-            
+            elif use_file:
+                cap = cv2.VideoCapture(path)
+                if cap and cap.isOpened():
+                    ret, frame = cap.read()
+
             if frame is None:
-                # Generate synthetic simulated CCTV frame if video source unavailable
+                # Synthetic simulated CCTV frame fallback if file missing
                 frame = np.zeros((720, 1280, 3), dtype=np.uint8)
                 cv2.rectangle(frame, (0, 0), (1280, 720), (15, 23, 35), -1)
                 for x in range(0, 1280, 80):
@@ -229,18 +164,19 @@ def create_app(video_source=None, model_path=None):
                 for y in range(0, 720, 80):
                     cv2.line(frame, (0, y), (1280, y), (25, 38, 55), 1)
                 
-                # Draw simulated moving target
                 px = int((frame_idx * 6) % 1200) + 40
                 py = int(480 + 40 * np.sin(frame_idx * 0.08))
                 cv2.rectangle(frame, (px, py), (px + 35, py + 80), (0, 212, 255), 2)
                 cv2.putText(frame, "TRACK P-014 | CONF 96.7%", (px, py - 10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 212, 255), 1)
-                
                 cv2.putText(frame, f"LIVE CCTV FEED | {time.strftime('%H:%M:%S IST')}", (20, 40),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 212, 255), 2)
                 frame_idx += 1
 
-            annotated_frame, stats = detector.process_frame(frame)
+            # Thread-safe object detection & tracking
+            with detector_lock:
+                annotated_frame, stats = detector.process_frame(frame)
+                
             ret, buffer = cv2.imencode('.jpg', annotated_frame)
             if not ret:
                 continue
@@ -248,7 +184,7 @@ def create_app(video_source=None, model_path=None):
             frame_bytes = buffer.tobytes()
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
-            time.sleep(0.04)
+            time.sleep(0.03)
 
     @app.route('/video_feed')
     @app.route('/video_feed/<cam_id>')

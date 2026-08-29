@@ -65,13 +65,13 @@ export const IncidentPanel: React.FC<IncidentPanelProps> = ({
       </div>
 
       {/* Evidence Snapshot Frame */}
-      <div className="relative w-full h-28 bg-black border border-border rounded overflow-hidden">
+      <div className="relative w-full h-32 bg-black border border-border rounded overflow-hidden">
         <img
           src="http://127.0.0.1:5000/video_feed/camera1"
           alt="Evidence Stream"
-          className="w-full h-full object-cover opacity-85"
+          className="w-full h-full object-cover opacity-90"
         />
-        <div className="absolute bottom-1.5 left-1.5 bg-black/70 px-1.5 py-0.5 rounded text-[9px] font-mono text-cyan-400 border border-cyan-500/30">
+        <div className="absolute bottom-1.5 left-1.5 bg-black/80 px-1.5 py-0.5 rounded text-[9px] font-mono text-cyan-400 border border-cyan-500/30">
           SUBJECT P-014 | BOUNDARY BREACH
         </div>
       </div>

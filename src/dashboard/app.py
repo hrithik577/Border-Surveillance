@@ -58,6 +58,13 @@ def create_app(video_source=None, model_path=None):
         }
     }
 
+    @app.after_request
+    def add_cors_headers(response):
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Headers'] = '*'
+        response.headers['Access-Control-Allow-Methods'] = '*'
+        return response
+
     @app.errorhandler(Exception)
     def handle_exception(e):
         from werkzeug.exceptions import HTTPException

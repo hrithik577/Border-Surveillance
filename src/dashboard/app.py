@@ -29,10 +29,11 @@ def create_app(video_source=None, model_path=None):
     actual_model_path = resolve_model_path(model_path)
     detector = ObjectDetector(model_path=actual_model_path)
 
-    video1_source = resolve_video_path(video_source or "data/videos/VIRAT_S_000001.mp4")
-    video2_source = resolve_video_path("C:/Users/bhrit/Downloads/09152008flight2tape1_1.mpg")
-    if video2_source == video1_source or not os.path.exists(video2_source):
-        video2_source = video1_source
+    pedestrian_video = resolve_video_path("data/videos/top_view_pedestrian.mp4")
+    virat_video = resolve_video_path(video_source or "data/videos/VIRAT_S_000001.mp4")
+
+    video1_source = virat_video if os.path.exists(virat_video) else pedestrian_video
+    video2_source = pedestrian_video if os.path.exists(pedestrian_video) else video1_source
 
     default_cameras = {
         'camera1': {
@@ -47,7 +48,7 @@ def create_app(video_source=None, model_path=None):
         },
         'camera2': {
             'id': 'CAM-071',
-            'name': 'Border Road 12 Junction',
+            'name': 'Top View Pedestrian Surveillance',
             'path': video2_source,
             'fence_y': 360,
             'color': '#ff6b6b',
@@ -245,8 +246,11 @@ def create_app(video_source=None, model_path=None):
     @app.route('/video_feed')
     @app.route('/video_feed/<cam_id>')
     def video_feed(cam_id='camera1'):
-        cam_info = default_cameras.get(cam_id, default_cameras['camera1'])
-        return Response(generate_frames(cam_info['path']), mimetype='multipart/x-mixed-replace; boundary=frame')
+        if cam_id == 'camera2' or cam_id == 'CAM-071':
+            target_path = default_cameras['camera2']['path']
+        else:
+            target_path = default_cameras['camera1']['path']
+        return Response(generate_frames(target_path), mimetype='multipart/x-mixed-replace; boundary=frame')
 
     app.socketio = socketio
     return app

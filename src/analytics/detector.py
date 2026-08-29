@@ -32,9 +32,25 @@ class ObjectDetector:
                 logger.warning(f"Model path {self.model_path} not found. Loading fallback yolov8n.pt")
                 self.model = YOLO("yolov8n.pt")
             
-            device = 'cuda' if torch.cuda.is_available() else 'cpu'
+            device = 'cpu'
+            if torch.cuda.is_available():
+                try:
+                    # Validate CUDA kernel compatibility for current GPU architecture
+                    test_t = torch.zeros((1, 3, 32, 32), device='cuda')
+                    _ = torch.nn.functional.conv2d(test_t, torch.zeros((3, 3, 3, 3), device='cuda'))
+                    device = 'cuda'
+                except Exception as e:
+                    logger.warning(f"CUDA device present but GPU kernel test failed ({e}). Defaulting to CPU.")
+                    device = 'cpu'
+
+            if device == 'cpu':
+                try:
+                    torch.backends.mkldnn.enabled = False
+                except Exception:
+                    pass
             self.model.to(device)
             logger.info(f"YOLO model initialized on device: {device}")
+
         except Exception as e:
             logger.error(f"Failed to load YOLO model: {e}")
             self.model = None
@@ -49,24 +65,28 @@ class ObjectDetector:
         annotated_frame = frame.copy()
         
         if self.model is not None:
-            results = self.model.track(frame, persist=True, verbose=False, conf=self.confidence)
-            if results and len(results) > 0:
-                annotated_frame = results[0].plot()
-                boxes = results[0].boxes
-                if boxes is not None:
-                    for box in boxes:
-                        cls_id = int(box.cls[0])
-                        # Class 0: person
-                        if cls_id == 0:
-                            people_count += 1
-                            # Check fence breach
-                            xyxy = box.xyxy[0].tolist()
-                            bottom_y = xyxy[3]
-                            if bottom_y > self.fence_y:
-                                self._trigger_alert("FENCE BREACH", f"Person detected across border line (Y={int(bottom_y)})")
-                        # Class 2 (car), 3 (motorcycle), 5 (bus), 7 (truck)
-                        elif cls_id in [2, 3, 5, 7]:
-                            vehicle_count += 1
+            try:
+                results = self.model.track(frame, persist=True, verbose=False, conf=self.confidence)
+                if results and len(results) > 0:
+                    annotated_frame = results[0].plot()
+                    boxes = results[0].boxes
+                    if boxes is not None:
+                        for box in boxes:
+                            cls_id = int(box.cls[0])
+                            # Class 0: person
+                            if cls_id == 0:
+                                people_count += 1
+                                # Check fence breach
+                                xyxy = box.xyxy[0].tolist()
+                                bottom_y = xyxy[3]
+                                if bottom_y > self.fence_y:
+                                    self._trigger_alert("FENCE BREACH", f"Person detected across border line (Y={int(bottom_y)})")
+                            # Class 2 (car), 3 (motorcycle), 5 (bus), 7 (truck)
+                            elif cls_id in [2, 3, 5, 7]:
+                                vehicle_count += 1
+            except Exception as e:
+                logger.warning(f"Detection inference warning: {e}")
+
                             
         # Draw virtual fence line
         h, w = annotated_frame.shape[:2]

@@ -37,3 +37,38 @@ def save_config(config, config_path):
     os.makedirs(os.path.dirname(config_path), exist_ok=True)
     with open(config_path, 'w', encoding='utf-8') as f:
         json.dump(config, f, indent=4)
+
+def resolve_video_path(preferred_path="data/videos/VIRAT_S_000001.mp4"):
+    """Find a valid video path from candidate locations."""
+    if preferred_path and os.path.exists(preferred_path):
+        return preferred_path
+    
+    candidates = [
+        "data/videos/VIRAT_S_000001.mp4",
+        "C:/IBVAP-Demo/data/videos/VIRAT_S_000001.mp4",
+        "C:/Users/bhrit/Downloads/VIRAT_S_000001.mp4",
+        "C:/IBVAP-Demo/VIRAT_S_000001.mp4",
+        "VIRAT_S_000001.mp4"
+    ]
+    for candidate in candidates:
+        if os.path.exists(candidate):
+            return candidate
+    return preferred_path
+
+def resolve_model_path(preferred_path="data/models/yolov8n.pt"):
+    """Find a valid YOLO model path from candidate locations."""
+    if preferred_path and os.path.exists(preferred_path):
+        return preferred_path
+    
+    candidates = [
+        "data/models/yolov8n.pt",
+        "yolov8n.pt",
+        "models/yolov8n.pt",
+        "C:/IBVAP-Demo/models/yolov8n.pt"
+    ]
+    for candidate in candidates:
+        if os.path.exists(candidate):
+            return candidate
+    return preferred_path
+
+

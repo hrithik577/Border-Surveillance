@@ -37,5 +37,13 @@ Thumbs.db
 
 # Environment
 .env
+.venv/
 venv/
 env/
+
+# Debug Artifacts & Screenshots
+debug_frame.jpg
+*.jpg
+*.png
+!static/**
+

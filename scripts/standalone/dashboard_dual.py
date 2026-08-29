@@ -1,4 +1,4 @@
-﻿import cv2
+import cv2
 import torch
 import numpy as np
 from ultralytics import YOLO
@@ -16,25 +16,51 @@ import random
 # CONFIGURATION - TWO CAMERAS
 # ============================================================
 
+def resolve_path(candidates, default=""):
+    for c in candidates:
+        if c and os.path.exists(c):
+            return c
+    return default
+
+video1_path = resolve_path([
+    "C:/IBVAP-Demo/data/videos/VIRAT_S_000001.mp4",
+    "C:/Users/bhrit/Downloads/VIRAT_S_000001.mp4",
+    "data/videos/VIRAT_S_000001.mp4",
+    "VIRAT_S_000001.mp4"
+], "VIRAT_S_000001.mp4")
+
+video2_path = resolve_path([
+    "C:/Users/bhrit/Downloads/09152008flight2tape1_1.mpg",
+    video1_path
+], video1_path)
+
+model_path = resolve_path([
+    "yolov8n.pt",
+    "models/yolov8n.pt",
+    "data/models/yolov8n.pt",
+    "C:/IBVAP-Demo/models/yolov8n.pt"
+], "yolov8n.pt")
+
 CAMERAS = {
     'camera1': {
         'name': 'Border Camera 1',
-        'path': 'C:/IBVAP-Demo/VIRAT_S_000001.mp4',
+        'path': video1_path,
         'fence_y': 540,
         'color': '#00d4ff',
         'active': True
     },
     'camera2': {
         'name': 'Border Camera 2',
-        'path': 'C:/Users/bhrit/Downloads/09152008flight2tape1_1.mpg',
+        'path': video2_path,
         'fence_y': 360,
         'color': '#ff6b6b',
         'active': True
     }
 }
 
-MODEL_PATH = "C:/IBVAP-Demo/models/yolov8n.pt"
+MODEL_PATH = model_path
 HISTORY_LENGTH = 200
+
 
 # ============================================================
 # FLASK APP
@@ -500,6 +526,7 @@ html_template = '''<!DOCTYPE html>
         
         <!-- Camera Grid -->
         <div class="camera-grid">
+            {% if cameras is defined and cameras %}
             {% for cam_id, cam in cameras.items() %}
             <div class="video-container">
                 <img src="{{ url_for('video_feed', cam_id=cam_id) }}" alt="{{ cam.name }}">
@@ -511,7 +538,19 @@ html_template = '''<!DOCTYPE html>
                 </div>
             </div>
             {% endfor %}
+            {% else %}
+            <div class="video-container">
+                <img src="{{ url_for('video_feed') }}" alt="Live Feed">
+                <div class="video-overlay">
+                    <span class="cam-name">Border Camera</span>
+                    <span class="cam-status" id="status_camera1">🟢 LIVE</span>
+                    <span class="cam-fps" id="fps_camera1">⚡ -- FPS</span>
+                    <span class="cam-stats" id="stats_camera1">👤 0 🚗 0</span>
+                </div>
+            </div>
+            {% endif %}
         </div>
+
         
         <!-- Stats Bar -->
         <div class="stats-bar">
@@ -719,7 +758,7 @@ if __name__ == '__main__':
     print("=" * 70)
     
     try:
-        socketio.run(app, host='0.0.0.0', port=5000, debug=False, use_reloader=False)
+        socketio.run(app, host='0.0.0.0', port=5000, debug=False, use_reloader=False, allow_unsafe_werkzeug=True)
     except KeyboardInterrupt:
         processing = False
         print("\n🛑 Shutting down...")

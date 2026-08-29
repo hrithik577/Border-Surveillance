@@ -1,13 +1,29 @@
-﻿import cv2
+import cv2
 import torch
 from ultralytics import YOLO
 import time
 from datetime import datetime
 import os
 
-# Use absolute path for the model
-MODEL_PATH = "C:/IBVAP-Demo/models/yolov8n.pt"
-VIDEO_PATH = "C:/IBVAP-Demo/VIRAT_S_000001.mp4"
+def resolve_path(candidates, default=""):
+    for c in candidates:
+        if c and os.path.exists(c):
+            return c
+    return default
+
+MODEL_PATH = resolve_path([
+    "yolov8n.pt",
+    "models/yolov8n.pt",
+    "data/models/yolov8n.pt",
+    "C:/IBVAP-Demo/models/yolov8n.pt"
+], "yolov8n.pt")
+
+VIDEO_PATH = resolve_path([
+    "C:/IBVAP-Demo/data/videos/VIRAT_S_000001.mp4",
+    "C:/Users/bhrit/Downloads/VIRAT_S_000001.mp4",
+    "data/videos/VIRAT_S_000001.mp4",
+    "VIRAT_S_000001.mp4"
+], "VIRAT_S_000001.mp4")
 
 try:
     from mtcnn import MTCNN
@@ -21,12 +37,13 @@ class IBVAP:
     def __init__(self, video_path):
         self.video_path = video_path
         
-        # Load model from absolute path
-        if not os.path.exists(MODEL_PATH):
-            raise FileNotFoundError(f"Model not found: {MODEL_PATH}")
+        actual_model_path = resolve_path([MODEL_PATH, "yolov8n.pt", "C:/IBVAP-Demo/models/yolov8n.pt"])
+        if not os.path.exists(actual_model_path):
+            raise FileNotFoundError(f"Model not found: {actual_model_path}")
         
-        self.model = YOLO(MODEL_PATH)
-        self.model.to('cuda')
+        self.model = YOLO(actual_model_path)
+        self.model.to('cuda' if torch.cuda.is_available() else 'cpu')
+
         
         self.alert_log = []
         self.frame_count = 0

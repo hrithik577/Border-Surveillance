@@ -1,4 +1,4 @@
-﻿import cv2
+import cv2
 import torch
 import numpy as np
 from ultralytics import YOLO
@@ -11,10 +11,29 @@ import os
 from collections import deque
 import json
 
+def resolve_path(candidates, default=""):
+    for c in candidates:
+        if c and os.path.exists(c):
+            return c
+    return default
+
 # Configuration
-VIDEO_PATH = "C:/IBVAP-Demo/VIRAT_S_000001.mp4"
-MODEL_PATH = "C:/IBVAP-Demo/models/yolov8n.pt"
+VIDEO_PATH = resolve_path([
+    "C:/IBVAP-Demo/data/videos/VIRAT_S_000001.mp4",
+    "C:/Users/bhrit/Downloads/VIRAT_S_000001.mp4",
+    "data/videos/VIRAT_S_000001.mp4",
+    "VIRAT_S_000001.mp4"
+], "VIRAT_S_000001.mp4")
+
+MODEL_PATH = resolve_path([
+    "yolov8n.pt",
+    "models/yolov8n.pt",
+    "data/models/yolov8n.pt",
+    "C:/IBVAP-Demo/models/yolov8n.pt"
+], "yolov8n.pt")
+
 HISTORY_LENGTH = 200
+
 
 # Flask app
 app = Flask(__name__)
@@ -677,7 +696,7 @@ if __name__ == '__main__':
     print("=" * 60)
     
     try:
-        socketio.run(app, host='0.0.0.0', port=5000, debug=False, use_reloader=False)
+        socketio.run(app, host='0.0.0.0', port=5000, debug=False, use_reloader=False, allow_unsafe_werkzeug=True)
     except KeyboardInterrupt:
         processing = False
         print("\nShutting down...")

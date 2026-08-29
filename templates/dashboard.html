@@ -4,7 +4,10 @@
     <meta charset="UTF-8">
     <title>IBVAP - Dual Camera Smart AI Surveillance</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>if (typeof io === 'undefined') { document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"><\/script>'); }</script>
+
+
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -208,6 +211,7 @@
         
         <!-- Camera Grid -->
         <div class="camera-grid">
+            {% if cameras is defined and cameras %}
             {% for cam_id, cam in cameras.items() %}
             <div class="video-container">
                 <img src="{{ url_for('video_feed', cam_id=cam_id) }}" alt="{{ cam.name }}">
@@ -219,7 +223,19 @@
                 </div>
             </div>
             {% endfor %}
+            {% else %}
+            <div class="video-container">
+                <img src="{{ url_for('video_feed') }}" alt="Live Feed">
+                <div class="video-overlay">
+                    <span class="cam-name">Border Camera</span>
+                    <span class="cam-status" id="status_camera1">🟢 LIVE</span>
+                    <span class="cam-fps" id="fps_camera1">⚡ -- FPS</span>
+                    <span class="cam-stats" id="stats_camera1">👤 0 🚗 0</span>
+                </div>
+            </div>
+            {% endif %}
         </div>
+
         
         <!-- Stats Bar -->
         <div class="stats-bar">
@@ -315,53 +331,62 @@
             }
         });
 
-        // Socket
-        var socket = io.connect('http://' + document.domain + ':' + location.port);
+        // Socket with REST Polling Fallback
+        var socket = null;
+        if (typeof io !== 'undefined') {
+            try {
+                socket = io();
+            } catch(e) { console.warn("SocketIO init warning:", e); }
+        }
         var totalStats = { frames: 0, people: 0, vehicles: 0, alerts: 0 };
         
-        socket.on('stats_update', function(data) {
-            // Update per-camera overlays
-            document.getElementById('fps_' + data.camera).textContent = '⚡ ' + data.fps + ' FPS';
-            document.getElementById('stats_' + data.camera).textContent = '👤 ' + data.people_per_frame + ' 🚗 ' + data.vehicles_per_frame;
+        if (socket) {
+            socket.on('stats_update', function(data) {
+                updateDashboardStats(data);
+            });
             
-            // Update total stats
-            totalStats.frames += data.total_frames;
-            totalStats.people += data.total_people;
-            totalStats.vehicles += data.total_vehicles;
-            totalStats.alerts += data.total_alerts;
-            
-            document.getElementById('totalFrames').textContent = totalStats.frames;
-            document.getElementById('totalPeople').textContent = totalStats.people;
-            document.getElementById('totalVehicles').textContent = totalStats.vehicles;
-            document.getElementById('totalAlerts').textContent = totalStats.alerts;
-            document.getElementById('totalAlertsBadge').textContent = '🚨 Alerts: ' + totalStats.alerts;
-            document.getElementById('alertCount').textContent = totalStats.alerts;
-            document.getElementById('uptime').textContent = '⏱️ Uptime: ' + formatUptime(data.uptime);
-            
-            // Update chart
-            if (chart.data.labels.length > 60) {
-                chart.data.labels.shift();
-                chart.data.datasets[0].data.shift();
-                chart.data.datasets[1].data.shift();
+            socket.on('new_alert', function(data) {
+                var alertsList = document.getElementById('alertsList');
+                var alertDiv = document.createElement('div');
+                alertDiv.className = 'alert-item warning';
+                alertDiv.innerHTML = '<span class="cam">[' + data.camera + ']</span> ' + data.message + ' <span class="time">' + data.timestamp + '</span>';
+                alertsList.insertBefore(alertDiv, alertsList.firstChild);
+                if (alertsList.children.length > 30) {
+                    alertsList.removeChild(alertsList.lastChild);
+                }
+                document.getElementById('alertCount').textContent = document.querySelectorAll('#alertsList .alert-item').length;
+            });
+        }
+
+        function updateDashboardStats(data) {
+            if (data.camera) {
+                var fpsElem = document.getElementById('fps_' + data.camera);
+                if (fpsElem) fpsElem.textContent = '⚡ ' + (data.fps || '--') + ' FPS';
+                var statsElem = document.getElementById('stats_' + data.camera);
+                if (statsElem) statsElem.textContent = '👤 ' + (data.people_per_frame || 0) + ' 🚗 ' + (data.vehicles_per_frame || 0);
             }
-            chart.data.labels.push(data.timestamp);
-            chart.data.datasets[0].data.push(data.people_per_frame);
-            chart.data.datasets[1].data.push(data.vehicles_per_frame);
-            chart.update('none');
-        });
-        
-        socket.on('new_alert', function(data) {
-            var alertsList = document.getElementById('alertsList');
-            var alertDiv = document.createElement('div');
-            alertDiv.className = 'alert-item warning';
-            alertDiv.innerHTML = '<span class="cam">[' + data.camera + ']</span> ' + data.message + ' <span class="time">' + data.timestamp + '</span>';
-            alertsList.insertBefore(alertDiv, alertsList.firstChild);
-            if (alertsList.children.length > 30) {
-                alertsList.removeChild(alertsList.lastChild);
+            
+            if (data.alerts !== undefined) {
+                document.getElementById('totalAlerts').textContent = data.alerts.length || 0;
+                document.getElementById('totalAlertsBadge').textContent = '🚨 Alerts: ' + (data.alerts.length || 0);
+                document.getElementById('alertCount').textContent = data.alerts.length || 0;
             }
-            // Update alert count
-            document.getElementById('alertCount').textContent = document.querySelectorAll('#alertsList .alert-item').length;
-        });
+            if (data.uptime !== undefined) {
+                document.getElementById('uptime').textContent = '⏱️ Uptime: ' + formatUptime(data.uptime);
+            }
+        }
+
+        // Periodic REST polling fallback
+        setInterval(function() {
+            fetch('/api/stats')
+                .then(res => res.json())
+                .then(data => {
+                    if (data && data.status === 'online') {
+                        updateDashboardStats(data);
+                    }
+                }).catch(err => console.log("Stats poll error:", err));
+        }, 2000);
+
 
         function formatUptime(seconds) {
             var mins = Math.floor(seconds / 60);

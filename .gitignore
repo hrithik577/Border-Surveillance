@@ -42,8 +42,11 @@ venv/
 env/
 
 # Debug Artifacts & Screenshots
+data/models/yolov8n.pt
 debug_frame.jpg
 *.jpg
 *.png
+frontend/node_modules/
+frontend/.next/
+frontend/out/
 !static/**
-

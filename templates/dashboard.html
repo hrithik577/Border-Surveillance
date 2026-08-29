@@ -1,433 +1,1486 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>IBVAP - Dual Camera Smart AI Surveillance</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IBVAP - Intelligent Border Video Analytics Platform</title>
+    
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Leaflet.js GIS Mapping -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Socket.IO -->
     <script src="/socket.io/socket.io.js"></script>
     <script>if (typeof io === 'undefined') { document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"><\/script>'); }</script>
 
-
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #0a0e17;
-            color: #fff;
-            min-height: 100vh;
-            padding: 15px;
+        :root {
+            --bg-base: #070a11;
+            --bg-surface: #0e1522;
+            --bg-surface-elevated: #151f32;
+            --bg-card: #111a2b;
+            --border-color: #1e2d42;
+            --border-active: #2e4466;
+            
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            
+            --accent-green: #10b981;
+            --accent-amber: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-blue: #3b82f6;
+            --accent-cyan: #06b6d4;
+            --accent-purple: #8b5cf6;
+            
+            --font-main: 'IBM Plex Sans', -apple-system, sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
         }
-        .dashboard { max-width: 1920px; margin: 0 auto; }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         
-        /* Header */
+        body {
+            font-family: var(--font-main);
+            background-color: var(--bg-base);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        /* Scrollbars */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: var(--bg-base); }
+        ::-webkit-scrollbar-thumb { background: var(--border-color); borderRadius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--border-active); }
+
+        /* Typography & Utilities */
+        .font-mono { font-family: var(--font-mono); }
+        .text-xs { font-size: 11px; }
+        .text-sm { font-size: 12px; }
+        .text-md { font-size: 13px; }
+        .text-lg { font-size: 16px; font-weight: 600; }
+        .text-xl { font-size: 20px; font-weight: 700; }
+        .text-muted { color: var(--text-muted); }
+        .text-secondary { color: var(--text-secondary); }
+        .text-green { color: var(--accent-green); }
+        .text-amber { color: var(--accent-amber); }
+        .text-red { color: var(--accent-red); }
+        .text-blue { color: var(--accent-blue); }
+        .text-cyan { color: var(--accent-cyan); }
+        
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 7px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-family: var(--font-mono);
+        }
+        .badge-green { background: rgba(16, 185, 129, 0.15); color: var(--accent-green); border: 1px solid rgba(16, 185, 129, 0.3); }
+        .badge-amber { background: rgba(245, 158, 11, 0.15); color: var(--accent-amber); border: 1px solid rgba(245, 158, 11, 0.3); }
+        .badge-red { background: rgba(239, 68, 68, 0.15); color: var(--accent-red); border: 1px solid rgba(239, 68, 68, 0.3); }
+        .badge-blue { background: rgba(59, 130, 246, 0.15); color: var(--accent-blue); border: 1px solid rgba(59, 130, 246, 0.3); }
+
+        /* Main Layout */
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* Top Header */
         .header {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            padding: 15px 25px;
-            background: linear-gradient(135deg, #1a2332, #0d1520);
-            border-radius: 12px;
-            margin-bottom: 15px;
-            border: 1px solid #2a3a4a;
+            justify-content: space-between;
+            background: var(--bg-surface);
+            border-bottom: 1px solid var(--border-color);
+            padding: 0 16px;
+            height: 52px;
+            flex-shrink: 0;
+            z-index: 100;
         }
-        .header h1 {
-            font-size: 24px;
-            background: linear-gradient(90deg, #00d4ff, #7b2ffc);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
-        .header h1 small {
+        
+        .logo-insignia {
+            width: 28px;
+            height: 28px;
+            background: linear-gradient(135deg, #1e3a8a, #0284c7);
+            border: 1px solid #38bdf8;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
             font-size: 14px;
-            color: #667788;
-            -webkit-text-fill-color: #667788;
+            color: #fff;
+            box-shadow: 0 0 10px rgba(2, 132, 199, 0.4);
         }
-        .header-right {
+
+        .brand-title {
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: var(--text-primary);
+        }
+        .brand-subtitle {
+            font-size: 10px;
+            color: var(--text-muted);
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .header-center {
             display: flex;
             align-items: center;
             gap: 20px;
+            background: var(--bg-base);
+            padding: 4px 14px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
         }
-        .status-dot {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            background: #00ff88;
-            border-radius: 50%;
-            animation: pulse 2s infinite;
+
+        .telemetry-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
-        @keyframes pulse {
-            0% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.5; transform: scale(1.2); }
-            100% { opacity: 1; transform: scale(1); }
+        .telemetry-label {
+            font-size: 9px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
-        .status-text { color: #00ff88; font-size: 14px; margin-left: 8px; }
-        .uptime { color: #8899aa; font-size: 13px; }
-        
-        /* Camera Grid */
-        .camera-grid {
+        .telemetry-value {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .btn {
+            background: var(--bg-surface-elevated);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.15s ease;
+        }
+        .btn:hover {
+            background: var(--border-color);
+            border-color: var(--border-active);
+        }
+        .btn-primary {
+            background: rgba(59, 130, 246, 0.2);
+            border-color: var(--accent-blue);
+            color: #60a5fa;
+        }
+        .btn-primary:hover {
+            background: rgba(59, 130, 246, 0.35);
+        }
+        .btn-danger {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: var(--accent-red);
+            color: #f87171;
+        }
+        .btn-danger:hover {
+            background: rgba(239, 68, 68, 0.35);
+        }
+        .btn-simulation {
+            background: linear-gradient(135deg, #7c3aed, #4f46e5);
+            border: 1px solid #a78bfa;
+            color: #fff;
+            font-weight: 600;
+            box-shadow: 0 0 12px rgba(124, 58, 237, 0.4);
+        }
+        .btn-simulation:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 0 16px rgba(124, 58, 237, 0.6);
+        }
+
+        /* Body Workspace */
+        .body-workspace {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Sidebar Navigation */
+        .sidebar {
+            width: 220px;
+            background: var(--bg-surface);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px 8px;
+        }
+
+        .nav-section {
+            margin-bottom: 16px;
+        }
+        .nav-section-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 4px 8px;
+            margin-bottom: 4px;
+        }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 7px 10px;
+            border-radius: 4px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            font-size: 12px;
+        }
+        .nav-item:hover {
+            background: var(--bg-surface-elevated);
+            color: var(--text-primary);
+        }
+        .nav-item.active {
+            background: rgba(59, 130, 246, 0.15);
+            color: #60a5fa;
+            border-left: 3px solid var(--accent-blue);
+            font-weight: 600;
+        }
+        .nav-item svg {
+            width: 15px;
+            height: 15px;
+            stroke-width: 2;
+        }
+
+        .sidebar-footer {
+            padding: 12px;
+            border-top: 1px solid var(--border-color);
+            background: var(--bg-base);
+            font-size: 11px;
+        }
+        .sidebar-footer-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+
+        /* View Container */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: var(--bg-base);
+        }
+
+        .view-pane {
+            display: none;
+            flex: 1;
+            flex-direction: column;
+            overflow-y: auto;
+            padding: 14px;
+            gap: 14px;
+        }
+        .view-pane.active {
+            display: flex;
+        }
+
+        /* Top KPI Strip */
+        .kpi-strip {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-bottom: 15px;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 10px;
+            flex-shrink: 0;
         }
-        .video-container {
-            background: #0d1520;
-            border-radius: 12px;
-            border: 1px solid #1a2a3a;
+        .kpi-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .kpi-title {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+        .kpi-value {
+            font-family: var(--font-mono);
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        .kpi-sub {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 10px;
+            color: var(--text-secondary);
+        }
+
+        /* Middle Grid Layout (Map + Intelligence Right) */
+        .middle-grid {
+            display: grid;
+            grid-template-columns: 65% 35%;
+            gap: 14px;
+            height: 520px;
+            flex-shrink: 0;
+        }
+
+        .map-wrapper {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column;
             overflow: hidden;
             position: relative;
         }
-        .video-container img {
-            width: 100%;
-            height: auto;
-            display: block;
-        }
-        .video-overlay {
-            position: absolute;
-            top: 15px; left: 15px;
+
+        .panel-header {
             display: flex;
-            gap: 15px;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: var(--bg-surface-elevated);
+            border-bottom: 1px solid var(--border-color);
+        }
+        .panel-title {
             font-size: 11px;
-            background: rgba(0,0,0,0.8);
-            padding: 6px 12px;
-            border-radius: 8px;
-            border: 1px solid #2a3a4a;
-            flex-wrap: wrap;
-        }
-        .video-overlay .cam-name { color: #00d4ff; font-weight: bold; }
-        .video-overlay .cam-status { color: #00ff88; }
-        .video-overlay .cam-fps { color: #ffd93d; }
-        .video-overlay .cam-stats { color: #ffffff; }
-        
-        /* Stats Bar */
-        .stats-bar {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-        .stat-item {
-            background: #0d1520;
-            padding: 12px 15px;
-            border-radius: 10px;
-            border: 1px solid #1a2a3a;
-            text-align: center;
-        }
-        .stat-item .value {
-            font-size: 22px;
-            font-weight: bold;
-            background: linear-gradient(90deg, #00d4ff, #7b2ffc);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        .stat-item .label { font-size: 11px; color: #8899aa; margin-top: 2px; }
-        .stat-item .sub { font-size: 10px; color: #667788; }
-        
-        /* Bottom Section */
-        .bottom-grid {
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 15px;
-        }
-        .card {
-            background: #0d1520;
-            border-radius: 12px;
-            padding: 15px;
-            border: 1px solid #1a2a3a;
-        }
-        .card h3 {
-            color: #00d4ff;
-            font-size: 13px;
+            font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 10px;
+            letter-spacing: 0.8px;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        #border-map {
+            width: 100%;
+            flex: 1;
+            background: #090d16;
+            z-index: 1;
+        }
+
+        /* Map GIS Overlay Controls */
+        .map-layer-control {
+            position: absolute;
+            top: 45px;
+            right: 12px;
+            z-index: 1000;
+            background: rgba(14, 21, 34, 0.9);
+            backdrop-filter: blur(8px);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 8px;
+            width: 160px;
+            font-size: 10px;
+        }
+        .map-layer-control h4 {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .layer-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 4px;
+            color: var(--text-secondary);
+            cursor: pointer;
+        }
+        .layer-item input { cursor: pointer; }
+
+        /* Right Column Panels */
+        .right-column {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow-y: auto;
+        }
+
+        .incident-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--accent-red);
+            border-radius: 4px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.15);
+        }
+        .incident-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
-        .card h3 span { color: #667788; font-size: 11px; }
-        
-        .chart-container {
+        .incident-score-badge {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid var(--accent-red);
+            color: var(--accent-red);
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-family: var(--font-mono);
+            font-size: 14px;
+            font-weight: 700;
+        }
+        .incident-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            font-size: 11px;
+            background: var(--bg-base);
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+        }
+        .incident-meta-label { color: var(--text-muted); font-size: 10px; text-transform: uppercase; }
+        .incident-meta-value { font-weight: 600; font-family: var(--font-mono); }
+
+        .snapshot-container {
             position: relative;
-            height: 100px;
+            width: 100%;
+            height: 120px;
+            background: #000;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            overflow: hidden;
         }
-        
-        /* Alerts */
-        .alerts-container {
-            max-height: 200px;
-            overflow-y: auto;
+        .snapshot-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0.85;
         }
-        .alert-item {
-            padding: 6px 10px;
-            margin: 3px 0;
-            border-radius: 6px;
-            background: #1a2332;
-            border-left: 3px solid #ff0044;
-            font-size: 12px;
-            color: #ccddee;
-            animation: slideIn 0.3s ease;
-        }
-        @keyframes slideIn {
-            from { opacity: 0; transform: translateX(-20px); }
-            to { opacity: 1; transform: translateX(0); }
-        }
-        .alert-item .time { color: #667788; font-size: 10px; }
-        .alert-item .cam { color: #00d4ff; font-weight: bold; }
-        .alert-item.warning { border-left-color: #ffaa00; }
-        
-        /* Scrollbar */
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: #0d1520; }
-        ::-webkit-scrollbar-thumb { background: #2a3a4a; border-radius: 4px; }
-        
-        /* Responsive */
-        @media (max-width: 1200px) {
-            .camera-grid { grid-template-columns: 1fr; }
-            .bottom-grid { grid-template-columns: 1fr; }
-            .stats-bar { grid-template-columns: repeat(2, 1fr); }
-        }
-        .badge {
-            background: #1a2332;
-            padding: 2px 10px;
-            border-radius: 12px;
+        .snapshot-overlay {
+            position: absolute;
+            bottom: 6px;
+            left: 6px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 2px 6px;
+            border-radius: 2px;
+            font-family: var(--font-mono);
             font-size: 10px;
-            color: #8899aa;
+            color: var(--accent-cyan);
         }
-        .badge.danger { color: #ff0044; border: 1px solid #ff0044; }
-        .badge.success { color: #00ff88; border: 1px solid #00ff88; }
+
+        /* Correlation Pipeline Visualization */
+        .correlation-pipeline {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 10px;
+        }
+        .pipeline-flow {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-top: 8px;
+        }
+        .pipeline-step {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 10px;
+            background: var(--bg-base);
+            padding: 5px 8px;
+            border-radius: 3px;
+            border-left: 3px solid var(--accent-blue);
+        }
+        .pipeline-step.active {
+            border-left-color: var(--accent-red);
+            background: rgba(239, 68, 68, 0.1);
+        }
+        .step-num {
+            font-family: var(--font-mono);
+            font-weight: 700;
+            color: var(--text-muted);
+            width: 16px;
+        }
+
+        /* Copilot Console */
+        .copilot-panel {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .copilot-text {
+            font-size: 11px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            background: var(--bg-base);
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px dashed var(--border-color);
+        }
+        .copilot-actions {
+            display: flex;
+            gap: 6px;
+        }
+
+        /* Lower Workspace Grid (CCTV Wall + Analytics) */
+        .lower-grid {
+            display: grid;
+            grid-template-columns: 60% 40%;
+            gap: 14px;
+        }
+
+        .cctv-wall-panel {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .cctv-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+        .cctv-tile {
+            position: relative;
+            background: #000;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            aspect-ratio: 16 / 9;
+            overflow: hidden;
+            cursor: pointer;
+        }
+        .cctv-tile:hover {
+            border-color: var(--accent-blue);
+        }
+        .cctv-tile img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .cctv-badge {
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            background: rgba(0,0,0,0.7);
+            padding: 2px 5px;
+            border-radius: 2px;
+            font-size: 9px;
+            font-family: var(--font-mono);
+        }
+        .cctv-telemetry {
+            position: absolute;
+            bottom: 4px;
+            right: 4px;
+            background: rgba(0,0,0,0.7);
+            padding: 2px 5px;
+            border-radius: 2px;
+            font-size: 9px;
+            font-family: var(--font-mono);
+            color: var(--accent-green);
+        }
+
+        .analytics-panel {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        /* Generic Table Style */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+        .data-table th {
+            background: var(--bg-surface-elevated);
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-size: 10px;
+            letter-spacing: 0.5px;
+            text-align: left;
+            padding: 8px 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .data-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-secondary);
+        }
+        .data-table tr:hover td {
+            background: var(--bg-surface-elevated);
+            color: var(--text-primary);
+        }
+
+        /* Modal Overlay */
+        .modal-backdrop {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.75);
+            backdrop-filter: blur(4px);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-backdrop.active { display: flex; }
+        .modal-box {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-active);
+            border-radius: 6px;
+            width: 500px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+        }
     </style>
 </head>
 <body>
-    <div class="dashboard">
-        <!-- Header -->
-        <div class="header">
-            <h1>🛡️ IBVAP <small>Dual Camera Smart AI Surveillance</small></h1>
-            <div class="header-right">
-                <span class="badge success" id="uptime">⏱️ Uptime: 0s</span>
-                <span class="badge" id="totalAlertsBadge">🚨 Alerts: 0</span>
-                <span class="status-dot"></span>
-                <span class="status-text">LIVE</span>
+
+<div class="app-container">
+    <!-- Top Command Header -->
+    <header class="header">
+        <div class="header-left">
+            <div class="logo-insignia">IB</div>
+            <div>
+                <div class="brand-title">IBVAP</div>
+                <div class="brand-subtitle">INTELLIGENT BORDER VIDEO ANALYTICS PLATFORM</div>
             </div>
-        </div>
-        
-        <!-- Camera Grid -->
-        <div class="camera-grid">
-            {% if cameras is defined and cameras %}
-            {% for cam_id, cam in cameras.items() %}
-            <div class="video-container">
-                <img src="{{ url_for('video_feed', cam_id=cam_id) }}" alt="{{ cam.name }}">
-                <div class="video-overlay">
-                    <span class="cam-name">{{ cam.name }}</span>
-                    <span class="cam-status" id="status_{{ cam_id }}">🟢 LIVE</span>
-                    <span class="cam-fps" id="fps_{{ cam_id }}">⚡ -- FPS</span>
-                    <span class="cam-stats" id="stats_{{ cam_id }}">👤 0 🚗 0</span>
-                </div>
-            </div>
-            {% endfor %}
-            {% else %}
-            <div class="video-container">
-                <img src="{{ url_for('video_feed') }}" alt="Live Feed">
-                <div class="video-overlay">
-                    <span class="cam-name">Border Camera</span>
-                    <span class="cam-status" id="status_camera1">🟢 LIVE</span>
-                    <span class="cam-fps" id="fps_camera1">⚡ -- FPS</span>
-                    <span class="cam-stats" id="stats_camera1">👤 0 🚗 0</span>
-                </div>
-            </div>
-            {% endif %}
         </div>
 
-        
-        <!-- Stats Bar -->
-        <div class="stats-bar">
-            <div class="stat-item">
-                <div class="value" id="totalFrames">0</div>
-                <div class="label">Total Frames</div>
+        <div class="header-center">
+            <div class="telemetry-item">
+                <span class="telemetry-label">SYSTEM STATUS</span>
+                <span class="telemetry-value text-green">● OPERATIONAL</span>
             </div>
-            <div class="stat-item">
-                <div class="value" id="totalPeople">0</div>
-                <div class="label">👤 Total People</div>
+            <div class="telemetry-item">
+                <span class="telemetry-label">CAMERAS</span>
+                <span class="telemetry-value font-mono">247 / 255</span>
             </div>
-            <div class="stat-item">
-                <div class="value" id="totalVehicles">0</div>
-                <div class="label">🚗 Total Vehicles</div>
+            <div class="telemetry-item">
+                <span class="telemetry-label">AI MODELS</span>
+                <span class="telemetry-value font-mono text-cyan">12 / 12 ACTIVE</span>
             </div>
-            <div class="stat-item">
-                <div class="value" id="totalAlerts">0</div>
-                <div class="label">🚨 Total Alerts</div>
-                <div class="sub" id="alertRate">--</div>
+            <div class="telemetry-item">
+                <span class="telemetry-label">ACTIVE ALERTS</span>
+                <span class="telemetry-value font-mono text-red">16</span>
+            </div>
+            <div class="telemetry-item">
+                <span class="telemetry-label">GPU LOAD</span>
+                <span class="telemetry-value font-mono">76%</span>
+            </div>
+            <div class="telemetry-item">
+                <span class="telemetry-label">INFERENCE</span>
+                <span class="telemetry-value font-mono">28.4 FPS</span>
+            </div>
+            <div class="telemetry-item">
+                <span class="telemetry-label">LATENCY</span>
+                <span class="telemetry-value font-mono">31 ms</span>
             </div>
         </div>
-        
-        <!-- Bottom Grid -->
-        <div class="bottom-grid">
-            <!-- Chart -->
-            <div class="card">
-                <h3>📈 Activity Chart <span>Real-time</span></h3>
-                <div class="chart-container">
-                    <canvas id="activityChart"></canvas>
+
+        <div class="header-right">
+            <span class="font-mono text-xs text-secondary" id="clock-display">21:43:18 IST</span>
+            <span class="badge badge-green">SECURE OPERATIONS</span>
+            <button class="btn btn-simulation" onclick="runIncidentSimulation()">⚡ RUN SIMULATION MODE</button>
+            <button class="btn" onclick="toggleModal('modal-search')">🔍 Search</button>
+            <button class="btn" onclick="toggleModal('modal-login')">👤 Operator</button>
+        </div>
+    </header>
+
+    <!-- Body Workspace -->
+    <div class="body-workspace">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-title">COMMAND</div>
+                    <div class="nav-item active" onclick="switchView('overview')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                        Overview
+                    </div>
+                    <div class="nav-item" onclick="switchView('surveillance')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                        Live Surveillance
+                    </div>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">INTELLIGENCE</div>
+                    <div class="nav-item" onclick="switchView('detection')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                        AI Detection
+                    </div>
+                    <div class="nav-item" onclick="switchView('anpr')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M6 10h12M6 14h8"/></svg>
+                        ANPR Intelligence
+                    </div>
+                    <div class="nav-item" onclick="switchView('face')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        Face Intelligence
+                    </div>
+                    <div class="nav-item" onclick="switchView('behaviour')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                        Behaviour Analytics
+                    </div>
+                    <div class="nav-item" onclick="switchView('night')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                        Night Surveillance
+                    </div>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">SECURITY</div>
+                    <div class="nav-item" onclick="switchView('incidents')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                        Incident Center
+                    </div>
+                    <div class="nav-item" onclick="switchView('evidence')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        Evidence Vault
+                    </div>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">INFRASTRUCTURE</div>
+                    <div class="nav-item" onclick="switchView('cameras')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+                        Camera Network
+                    </div>
+                    <div class="nav-item" onclick="switchView('system')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+                        System Health
+                    </div>
+                    <div class="nav-item" onclick="switchView('audit')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                        Audit Logs
+                    </div>
+                </div>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="sidebar-footer-row">
+                    <span class="text-muted">AI ENGINE</span>
+                    <span class="text-green font-mono">● ONLINE</span>
+                </div>
+                <div class="sidebar-footer-row">
+                    <span class="text-muted">EDGE NODES</span>
+                    <span class="text-cyan font-mono">ACTIVE</span>
+                </div>
+                <div class="sidebar-footer-row">
+                    <span class="text-muted">MODEL</span>
+                    <span class="font-mono">YOLOv8 + TRACK</span>
+                </div>
+                <div class="sidebar-footer-row" style="margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--border-color);">
+                    <span class="text-muted">VERSION</span>
+                    <span class="font-mono">IBVAP v1.0</span>
                 </div>
             </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
             
-            <!-- Alerts -->
-            <div class="card">
-                <h3>🚨 Live Alerts <span id="alertCount">0</span></h3>
-                <div class="alerts-container" id="alertsList">
-                    <div style="color:#667788;text-align:center;padding:20px;font-size:13px;">No alerts detected</div>
+            <!-- OVERVIEW VIEW PANE -->
+            <div id="view-overview" class="view-pane active">
+                
+                <!-- Top KPI Strip -->
+                <div class="kpi-strip">
+                    <div class="kpi-card">
+                        <span class="kpi-title">CAMERAS ONLINE</span>
+                        <span class="kpi-value text-green">247 / 255</span>
+                        <div class="kpi-sub">
+                            <span>+2.4% vs 24h</span>
+                            <span class="badge badge-green">96.8%</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-title">PERSONS DETECTED</span>
+                        <span class="kpi-value text-cyan">1,284</span>
+                        <div class="kpi-sub">
+                            <span>+12.1% vs 24h</span>
+                            <span class="text-muted font-mono">24H</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-title">VEHICLES DETECTED</span>
+                        <span class="kpi-value text-blue">437</span>
+                        <div class="kpi-sub">
+                            <span>-3.5% vs 24h</span>
+                            <span class="text-muted font-mono">24H</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-title">SECURITY EVENTS</span>
+                        <span class="kpi-value text-amber">23</span>
+                        <div class="kpi-sub">
+                            <span>+4 events</span>
+                            <span class="badge badge-amber">ATTN</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-title">CRITICAL ALERTS</span>
+                        <span class="kpi-value text-red">4</span>
+                        <div class="kpi-sub">
+                            <span>Sector Alpha</span>
+                            <span class="badge badge-red">CRITICAL</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-title">ANPR MATCHES</span>
+                        <span class="kpi-value font-mono">17</span>
+                        <div class="kpi-sub">
+                            <span>1 Review Required</span>
+                            <span class="badge badge-amber">ANPR</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-title">INTRUSIONS</span>
+                        <span class="kpi-value text-red font-mono">6</span>
+                        <div class="kpi-sub">
+                            <span>Boundary Crossing</span>
+                            <span class="badge badge-red">BREACH</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-title">AI CONFIDENCE</span>
+                        <span class="kpi-value text-green font-mono">94.8%</span>
+                        <div class="kpi-sub">
+                            <span>Precision: 95.2%</span>
+                            <span class="badge badge-green">OPTIMAL</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Middle GIS Map & Right Intelligence Grid -->
+                <div class="middle-grid">
+                    <!-- GIS Map -->
+                    <div class="map-wrapper">
+                        <div class="panel-header">
+                            <div class="panel-title">
+                                🛰️ LIVE BORDER SITUATIONAL MAP (GIS INTELLIGENCE)
+                            </div>
+                            <div style="display:flex; gap:8px;">
+                                <span class="badge badge-blue">CARTODB DARK BASAL</span>
+                                <span class="badge badge-green">REAL-TIME TRAJECTORY</span>
+                            </div>
+                        </div>
+
+                        <!-- Map Layer Control Box -->
+                        <div class="map-layer-control">
+                            <h4>GIS LAYERS</h4>
+                            <label class="layer-item"><input type="checkbox" checked id="layer-cameras"> Cameras (247)</label>
+                            <label class="layer-item"><input type="checkbox" checked id="layer-bop"> Border Posts (4)</label>
+                            <label class="layer-item"><input type="checkbox" checked id="layer-zones"> Virtual Fences</label>
+                            <label class="layer-item"><input type="checkbox" checked id="layer-trajectory"> Subject Trajectory</label>
+                            <label class="layer-item"><input type="checkbox" checked id="layer-incidents"> Active Incidents</label>
+                        </div>
+
+                        <div id="border-map"></div>
+                    </div>
+
+                    <!-- Right Column (Critical Incident + Copilot + Threat Feed) -->
+                    <div class="right-column">
+                        <!-- Critical Incident Panel -->
+                        <div class="incident-card" id="incident-card-box">
+                            <div class="incident-header">
+                                <div>
+                                    <div class="badge badge-red" id="incident-badge">CRITICAL INCIDENT #IBV-240184</div>
+                                    <div style="font-size:13px; font-weight:700; margin-top:4px;" id="incident-title">UNAUTHORIZED PERIMETER CROSSING</div>
+                                </div>
+                                <div class="incident-score-badge" id="incident-score">91 / 100</div>
+                            </div>
+
+                            <div class="incident-grid">
+                                <div>
+                                    <div class="incident-meta-label">Location</div>
+                                    <div class="incident-meta-value text-red" id="incident-loc">SECTOR ALPHA / BOP-07</div>
+                                </div>
+                                <div>
+                                    <div class="incident-meta-label">Camera</div>
+                                    <div class="incident-meta-value text-cyan" id="incident-cam">CAM-042</div>
+                                </div>
+                                <div>
+                                    <div class="incident-meta-label">Time</div>
+                                    <div class="incident-meta-value" id="incident-time">21:43:18 IST</div>
+                                </div>
+                                <div>
+                                    <div class="incident-meta-label">AI Confidence</div>
+                                    <div class="incident-meta-value text-green" id="incident-conf">96.7%</div>
+                                </div>
+                            </div>
+
+                            <div class="snapshot-container">
+                                <img src="/video_feed/camera1" class="snapshot-img" alt="Incident Snapshot">
+                                <div class="snapshot-overlay">SUBJECT P-014 | BOUNDARY BREACH</div>
+                            </div>
+
+                            <div style="display:flex; gap:6px;">
+                                <button class="btn btn-danger" style="flex:1;" onclick="acknowledgeIncident()">ACKNOWLEDGE</button>
+                                <button class="btn btn-primary" onclick="focusIncidentOnMap()">TRACK MAP</button>
+                                <button class="btn" onclick="switchView('evidence')">EVIDENCE</button>
+                            </div>
+                        </div>
+
+                        <!-- AI Event Correlation Pipeline -->
+                        <div class="correlation-pipeline">
+                            <div class="panel-title" style="font-size:10px; margin-bottom:4px;">
+                                ⚙️ AI MULTI-SIGNAL CORRELATION PIPELINE
+                            </div>
+                            <div class="pipeline-flow">
+                                <div class="pipeline-step"><span class="step-num">01</span> PERSON DETECTED (YOLOv8)</div>
+                                <div class="pipeline-step"><span class="step-num">02</span> TRACK ESTABLISHED (ByteTrack P-014)</div>
+                                <div class="pipeline-step"><span class="step-num">03</span> GEOFENCE PROXIMITY ALERT</div>
+                                <div class="pipeline-step active"><span class="step-num">04</span> BOUNDARY CROSSING CONFIRMED</div>
+                                <div class="pipeline-step active"><span class="step-num">05</span> CROSS-CAMERA CORRELATION (CAM-039 -> CAM-042)</div>
+                                <div class="pipeline-step active"><span class="step-num">06</span> THREAT SCORE GENERATED: 91 / 100</div>
+                            </div>
+                        </div>
+
+                        <!-- AI Surveillance Copilot -->
+                        <div class="copilot-panel">
+                            <div class="panel-title" style="font-size:10px;">
+                                🤖 AI SURVEILLANCE COPILOT ASSESSMENT
+                            </div>
+                            <div class="copilot-text" id="copilot-summary">
+                                "Subject P-014 tracked across 3 camera sectors. High probability of perimeter breach in Restricted Zone A. Threat score elevated to 91/100. Recommend immediate dispatch to BOP Alpha-07."
+                            </div>
+                            <div class="copilot-actions">
+                                <button class="btn btn-primary text-xs" onclick="alert('Subject P-014 added to high-priority track list.')">TRACK</button>
+                                <button class="btn text-xs" onclick="alert('Correlating nearby CCTV channels CAM-039, CAM-041, CAM-042...')">CORRELATE</button>
+                                <button class="btn btn-danger text-xs" onclick="alert('Incident escalated to Command Officer.')">ESCALATE</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Lower Workspace (CCTV Wall + Analytics) -->
+                <div class="lower-grid">
+                    <!-- Live CCTV Wall (8 Grid) -->
+                    <div class="cctv-wall-panel">
+                        <div class="panel-header">
+                            <div class="panel-title">📹 LIVE CCTV MATRIX (HIGH-DENSITY MONITORING)</div>
+                            <span class="badge badge-green">8 CHANNELS LIVE</span>
+                        </div>
+                        
+                        <div class="cctv-grid">
+                            <div class="cctv-tile" onclick="selectCamera('CAM-042')">
+                                <img src="/video_feed/camera1" alt="CAM-042">
+                                <div class="cctv-badge">CAM-042 | BOP-07</div>
+                                <div class="cctv-telemetry">28 FPS | AI ACTIVE</div>
+                            </div>
+                            <div class="cctv-tile" onclick="selectCamera('CAM-071')">
+                                <img src="/video_feed/camera2" alt="CAM-071">
+                                <div class="cctv-badge">CAM-071 | BORDER RD 12</div>
+                                <div class="cctv-telemetry">29 FPS | AI ACTIVE</div>
+                            </div>
+                            <div class="cctv-tile" onclick="selectCamera('CAM-039')">
+                                <img src="/video_feed/camera1" alt="CAM-039">
+                                <div class="cctv-badge">CAM-039 | SECTOR ALPHA</div>
+                                <div class="cctv-telemetry">30 FPS | AI ACTIVE</div>
+                            </div>
+                            <div class="cctv-tile" onclick="selectCamera('CAM-041')">
+                                <img src="/video_feed/camera2" alt="CAM-041">
+                                <div class="cctv-badge">CAM-041 | OUTPOST N</div>
+                                <div class="cctv-telemetry">27 FPS | AI ACTIVE</div>
+                            </div>
+                            <div class="cctv-tile" onclick="selectCamera('CAM-013')">
+                                <img src="/video_feed/camera1" alt="CAM-013">
+                                <div class="cctv-badge">CAM-013 | GATE 04</div>
+                                <div class="cctv-telemetry">28 FPS | AI ACTIVE</div>
+                            </div>
+                            <div class="cctv-tile" onclick="selectCamera('CAM-032')">
+                                <img src="/video_feed/camera2" alt="CAM-032">
+                                <div class="cctv-badge">CAM-032 | CHECKPOST 2</div>
+                                <div class="cctv-telemetry">29 FPS | AI ACTIVE</div>
+                            </div>
+                            <div class="cctv-tile" onclick="selectCamera('CAM-056')">
+                                <img src="/video_feed/camera1" alt="CAM-056">
+                                <div class="cctv-badge">CAM-056 | FREIGHT GATE</div>
+                                <div class="cctv-telemetry">30 FPS | AI ACTIVE</div>
+                            </div>
+                            <div class="cctv-tile" onclick="selectCamera('CAM-091')">
+                                <img src="/video_feed/camera2" alt="CAM-091">
+                                <div class="cctv-badge">CAM-091 | SECTOR BRAVO</div>
+                                <div class="cctv-telemetry">28 FPS | AI ACTIVE</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI Analytics & Threat Log -->
+                    <div class="analytics-panel">
+                        <div class="panel-header">
+                            <div class="panel-title">📊 REAL-TIME THREAT INTELLIGENCE LOG</div>
+                        </div>
+                        
+                        <div style="overflow-y:auto; max-height:220px;">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Time</th>
+                                        <th>Sev</th>
+                                        <th>Event</th>
+                                        <th>Location</th>
+                                        <th>Cam</th>
+                                        <th>Conf</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="threat-table-body">
+                                    <tr>
+                                        <td class="font-mono">21:43:18</td>
+                                        <td><span class="badge badge-red">CRIT</span></td>
+                                        <td>Perimeter crossing</td>
+                                        <td>Sector Alpha</td>
+                                        <td class="font-mono">CAM-042</td>
+                                        <td class="font-mono text-green">96.7%</td>
+                                        <td><span class="badge badge-amber" id="threat-status-1">INVEST</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-mono">21:42:51</td>
+                                        <td><span class="badge badge-amber">HIGH</span></td>
+                                        <td>Virtual fence breach</td>
+                                        <td>Border Road 12</td>
+                                        <td class="font-mono">CAM-071</td>
+                                        <td class="font-mono text-green">94.2%</td>
+                                        <td><span class="badge badge-blue">OPEN</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-mono">21:41:07</td>
+                                        <td><span class="badge badge-blue">MED</span></td>
+                                        <td>Unknown vehicle loitering</td>
+                                        <td>Border Road 6</td>
+                                        <td class="font-mono">CAM-032</td>
+                                        <td class="font-mono">88.6%</td>
+                                        <td><span class="text-muted">MONITOR</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-mono">21:38:22</td>
+                                        <td><span class="badge badge-green">LOW</span></td>
+                                        <td>ANPR watchlist match</td>
+                                        <td>Gate 04</td>
+                                        <td class="font-mono">CAM-013</td>
+                                        <td class="font-mono text-green">98.4%</td>
+                                        <td><span class="text-muted">ACK</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- LIVE SURVEILLANCE VIEW PANE -->
+            <div id="view-surveillance" class="view-pane">
+                <div class="panel-header">
+                    <div class="panel-title">📹 FULL SURVEILLANCE MATRIX — 16 CHANNEL VIEW</div>
+                </div>
+                <div class="cctv-grid" style="grid-template-columns: repeat(4, 1fr); gap: 12px;">
+                    <!-- 16 Grid Tiles -->
+                    <div class="cctv-tile"><img src="/video_feed/camera1"><div class="cctv-badge">CAM-042 | BOP ALPHA-07</div></div>
+                    <div class="cctv-tile"><img src="/video_feed/camera2"><div class="cctv-badge">CAM-071 | BORDER ROAD 12</div></div>
+                    <div class="cctv-tile"><img src="/video_feed/camera1"><div class="cctv-badge">CAM-039 | SECTOR ALPHA</div></div>
+                    <div class="cctv-tile"><img src="/video_feed/camera2"><div class="cctv-badge">CAM-041 | OUTPOST N</div></div>
+                    <div class="cctv-tile"><img src="/video_feed/camera1"><div class="cctv-badge">CAM-013 | GATE 04</div></div>
+                    <div class="cctv-tile"><img src="/video_feed/camera2"><div class="cctv-badge">CAM-032 | CHECKPOST 2</div></div>
+                    <div class="cctv-tile"><img src="/video_feed/camera1"><div class="cctv-badge">CAM-056 | FREIGHT GATE</div></div>
+                    <div class="cctv-tile"><img src="/video_feed/camera2"><div class="cctv-badge">CAM-091 | SECTOR BRAVO</div></div>
                 </div>
             </div>
+
+            <!-- ANPR VIEW PANE -->
+            <div id="view-anpr" class="view-pane">
+                <div class="panel-header"><div class="panel-title">🚗 AUTOMATED NUMBER PLATE RECOGNITION (ANPR INTELLIGENCE)</div></div>
+                <table class="data-table">
+                    <thead>
+                        <tr><th>License Plate</th><th>Vehicle Type</th><th>Camera</th><th>Location</th><th>Timestamp</th><th>Confidence</th><th>Status</th></tr>
+                    </thead>
+                    <tbody id="anpr-table-body">
+                        <tr><td class="font-mono text-amber">KA05XY7821</td><td>SUV</td><td>CAM-032</td><td>Gate 04</td><td>21:37 IST</td><td>96.8%</td><td><span class="badge badge-red">REVIEW REQUIRED</span></td></tr>
+                        <tr><td class="font-mono">KA01AB1234</td><td>SEDAN</td><td>CAM-013</td><td>Checkpost 02</td><td>21:34 IST</td><td>98.4%</td><td><span class="badge badge-green">CLEAR</span></td></tr>
+                        <tr><td class="font-mono">DL03CC9081</td><td>TRUCK</td><td>CAM-056</td><td>Freight Gate</td><td>21:28 IST</td><td>94.1%</td><td><span class="badge badge-green">CLEAR</span></td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- FACE VIEW PANE -->
+            <div id="view-face" class="view-pane">
+                <div class="panel-header"><div class="panel-title">👤 FACIAL ANALYSIS & RECOGNITION CONSOLE</div></div>
+                <div style="display:flex; gap:14px;">
+                    <div style="flex:1;" class="kpi-card"><span class="kpi-title">TOTAL FACES DETECTED</span><span class="kpi-value font-mono">142</span></div>
+                    <div style="flex:1;" class="kpi-card"><span class="kpi-title">AUTHORIZED PERSONNEL</span><span class="kpi-value text-green font-mono">126</span></div>
+                    <div style="flex:1;" class="kpi-card"><span class="kpi-title">UNKNOWN SUBJECTS</span><span class="kpi-value text-amber font-mono">16</span></div>
+                    <div style="flex:1;" class="kpi-card"><span class="kpi-title">REVIEW REQUIRED</span><span class="kpi-value text-red font-mono">3</span></div>
+                </div>
+            </div>
+
+            <!-- BEHAVIOUR VIEW PANE -->
+            <div id="view-behaviour" class="view-pane">
+                <div class="panel-header"><div class="panel-title">🧠 BEHAVIOURAL ANALYTICS & PATTERN DETECTION</div></div>
+                <table class="data-table">
+                    <thead><tr><th>Behaviour Event</th><th>Risk Score</th><th>Confidence</th><th>Camera</th><th>Duration</th><th>Action State</th></tr></thead>
+                    <tbody>
+                        <tr><td>LOITERING NEAR RESTRICTED ZONE</td><td><span class="badge badge-red">78 / 100</span></td><td>91.4%</td><td>CAM-013</td><td>04:18</td><td><button class="btn btn-primary text-xs">REVIEW</button></td></tr>
+                        <tr><td>WRONG-DIRECTION VEHICLE MOVEMENT</td><td><span class="badge badge-amber">65 / 100</span></td><td>89.2%</td><td>CAM-056</td><td>01:45</td><td><button class="btn text-xs">MONITOR</button></td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- NIGHT SURVEILLANCE VIEW PANE -->
+            <div id="view-night" class="view-pane">
+                <div class="panel-header"><div class="panel-title">🌙 NIGHT INFRARED & LOW-LIGHT SURVEILLANCE</div></div>
+                <div style="padding:20px; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:4px;">
+                    <div class="panel-title" style="margin-bottom:10px;">IR SENSOR TELEMETRY</div>
+                    <p class="text-secondary">Low-light cameras automatically operating in Infrared Mode. 0 anomalies detected in Sector Charlie.</p>
+                </div>
+            </div>
+
+            <!-- INCIDENTS VIEW PANE -->
+            <div id="view-incidents" class="view-pane">
+                <div class="panel-header"><div class="panel-title">🚨 INCIDENT MANAGEMENT & DISPATCH CENTER</div></div>
+                <table class="data-table">
+                    <thead><tr><th>Incident ID</th><th>Severity</th><th>Event Type</th><th>Location</th><th>Camera</th><th>Threat Score</th><th>Status</th></tr></thead>
+                    <tbody>
+                        <tr><td class="font-mono text-red">IBV-240184</td><td><span class="badge badge-red">CRITICAL</span></td><td>Perimeter crossing</td><td>Sector Alpha</td><td>CAM-042</td><td class="font-mono">91 / 100</td><td><span class="badge badge-amber">INVESTIGATING</span></td></tr>
+                        <tr><td class="font-mono text-amber">IBV-240183</td><td><span class="badge badge-amber">HIGH</span></td><td>Virtual fence breach</td><td>Border Road 12</td><td>CAM-071</td><td class="font-mono">84 / 100</td><td><span class="badge badge-blue">OPEN</span></td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- EVIDENCE VAULT VIEW PANE -->
+            <div id="view-evidence" class="view-pane">
+                <div class="panel-header"><div class="panel-title">🔒 FORENSIC EVIDENCE VAULT & HASH INTEGRITY</div></div>
+                <table class="data-table">
+                    <thead><tr><th>Evidence ID</th><th>Incident ID</th><th>Camera</th><th>Location</th><th>Timestamp</th><th>Cryptographic Hash</th><th>Actions</th></tr></thead>
+                    <tbody>
+                        <tr><td class="font-mono text-cyan">EV-9941</td><td class="font-mono">IBV-240184</td><td>CAM-042</td><td>Sector Alpha</td><td>21:43:18 IST</td><td class="font-mono text-xs">e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855</td><td><button class="btn btn-primary text-xs" onclick="alert('Exporting forensic package for EV-9941...')">EXPORT PKG</button></td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- CAMERA NETWORK VIEW PANE -->
+            <div id="view-cameras" class="view-pane">
+                <div class="panel-header"><div class="panel-title">🌐 CCTV NETWORK TOPOLOGY & HEALTH MONITORING</div></div>
+                <div style="padding:15px; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:4px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
+                        <span>CAMERAS ONLINE: <strong class="text-green">247</strong></span>
+                        <span>DEGRADED: <strong class="text-amber">4</strong></span>
+                        <span>OFFLINE: <strong class="text-red">8</strong></span>
+                    </div>
+                    <div style="font-size:11px; color:var(--text-muted);">Topology Pipeline: CCTV Cameras (RTSP) ➔ Edge Node Processing ➔ YOLOv8 AI Engine ➔ Event Correlation ➔ Command Center Console</div>
+                </div>
+            </div>
+
+            <!-- SYSTEM HEALTH VIEW PANE -->
+            <div id="view-system" class="view-pane">
+                <div class="panel-header"><div class="panel-title">🖥️ SYSTEM PERFORMANCE & HARDWARE METRICS</div></div>
+                <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:12px;">
+                    <div class="kpi-card"><span class="kpi-title">GPU UTILIZATION</span><span class="kpi-value text-cyan">76%</span></div>
+                    <div class="kpi-card"><span class="kpi-title">VRAM USAGE</span><span class="kpi-value font-mono">8.4 / 12 GB</span></div>
+                    <div class="kpi-card"><span class="kpi-title">INFERENCE FPS</span><span class="kpi-value text-green font-mono">28.4</span></div>
+                    <div class="kpi-card"><span class="kpi-title">LATENCY</span><span class="kpi-value text-green font-mono">31 ms</span></div>
+                </div>
+            </div>
+
+            <!-- AUDIT LOGS VIEW PANE -->
+            <div id="view-audit" class="view-pane">
+                <div class="panel-header"><div class="panel-title">📝 ENTERPRISE AUDIT LOGS</div></div>
+                <table class="data-table">
+                    <thead><tr><th>Timestamp</th><th>Operator</th><th>Action</th><th>Resource</th><th>Status</th></tr></thead>
+                    <tbody>
+                        <tr><td class="font-mono">21:43:23 IST</td><td class="font-mono text-cyan">OP-014</td><td>Incident acknowledged</td><td>IBV-240184</td><td><span class="badge badge-green">SUCCESS</span></td></tr>
+                        <tr><td class="font-mono">21:44:01 IST</td><td class="font-mono text-cyan">OP-014</td><td>Evidence locked</td><td>EV-9941</td><td><span class="badge badge-green">SUCCESS</span></td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+        </main>
+    </div>
+</div>
+
+<!-- Modal Dialogs -->
+<div id="modal-search" class="modal-backdrop">
+    <div class="modal-box">
+        <div class="panel-title">🔍 GLOBAL COMMAND SEARCH</div>
+        <input type="text" placeholder="Search Camera ID, Border Post, Incident ID, License Plate..." style="width:100%; padding:8px; background:var(--bg-base); border:1px solid var(--border-color); color:#fff; border-radius:4px;" focus>
+        <div style="display:flex; justify-content:flex-end;">
+            <button class="btn" onclick="toggleModal('modal-search')">Close</button>
         </div>
     </div>
+</div>
 
-    <script>
-        // Chart
-        const ctx = document.getElementById('activityChart').getContext('2d');
-        const chart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: [
-                    {
-                        label: 'People',
-                        data: [],
-                        borderColor: '#00d4ff',
-                        backgroundColor: 'rgba(0, 212, 255, 0.1)',
-                        fill: true,
-                        tension: 0.4,
-                        pointRadius: 0,
-                        borderWidth: 2
-                    },
-                    {
-                        label: 'Vehicles',
-                        data: [],
-                        borderColor: '#ff6b6b',
-                        backgroundColor: 'rgba(255, 107, 107, 0.1)',
-                        fill: true,
-                        tension: 0.4,
-                        pointRadius: 0,
-                        borderWidth: 2
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        labels: { color: '#8899aa', font: { size: 9 }, boxWidth: 10, padding: 5 }
-                    }
-                },
-                scales: {
-                    x: {
-                        ticks: { color: '#667788', font: { size: 8 }, maxTicksLimit: 10 },
-                        grid: { color: 'rgba(255,255,255,0.05)' }
-                    },
-                    y: {
-                        ticks: { color: '#667788', font: { size: 8 }, stepSize: 1 },
-                        grid: { color: 'rgba(255,255,255,0.05)' },
-                        beginAtZero: true
-                    }
-                },
-                animation: { duration: 300 }
-            }
+<div id="modal-login" class="modal-backdrop">
+    <div class="modal-box">
+        <div class="panel-title">👤 OPERATOR AUTHENTICATION</div>
+        <div>
+            <label class="text-xs text-muted">OPERATOR ID</label>
+            <input type="text" value="OP-014 (COMMAND OFFICER)" readonly style="width:100%; padding:8px; background:var(--bg-base); border:1px solid var(--border-color); color:#fff; border-radius:4px; margin-top:4px;">
+        </div>
+        <div>
+            <label class="text-xs text-muted">SECURITY CLEARANCE</label>
+            <div class="badge badge-green" style="margin-top:4px; display:inline-block;">LEVEL 5 — FULL DEFENCE ACCESS</div>
+        </div>
+        <div style="display:flex; justify-content:flex-end;">
+            <button class="btn" onclick="toggleModal('modal-login')">Close</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Tab View Switcher
+    function switchView(viewId) {
+        document.querySelectorAll('.view-pane').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        
+        const targetView = document.getElementById('view-' + viewId);
+        if (targetView) targetView.classList.add('active');
+        
+        // Highlight active nav item
+        event.currentTarget.classList.add('active');
+
+        // Resize map if overview active
+        if (viewId === 'overview' && window.borderMap) {
+            setTimeout(() => window.borderMap.invalidateSize(), 150);
+        }
+    }
+
+    // Modal Switcher
+    function toggleModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) modal.classList.toggle('active');
+    }
+
+    // Real-Time IST Clock
+    function updateClock() {
+        const now = new Date();
+        const hrs = String(now.getHours()).padStart(2, '0');
+        const mins = String(now.getMinutes()).padStart(2, '0');
+        const secs = String(now.getSeconds()).padStart(2, '0');
+        document.getElementById('clock-display').textContent = `${hrs}:${mins}:${secs} IST`;
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // GIS Leaflet Map Initialization
+    let borderMap, cameraMarkers = {}, trajectoryPolyline, geofencePolygon;
+
+    function initMap() {
+        // Sector Alpha Center Coordinates
+        const centerLat = 31.6280;
+        const centerLng = 74.8790;
+        
+        borderMap = L.map('border-map', {
+            zoomControl: true,
+            attributionControl: false
+        }).setView([centerLat, centerLng], 14);
+
+        window.borderMap = borderMap;
+
+        // Dark CartoDB Matter Tile Layer
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            maxZoom: 19
+        }).addTo(borderMap);
+
+        // Tactical Border Polyline
+        const borderLineCoords = [
+            [31.6450, 74.8600],
+            [31.6350, 74.8720],
+            [31.6250, 74.8850],
+            [31.6150, 74.8980]
+        ];
+        L.polyline(borderLineCoords, {
+            color: '#ef4444',
+            dashArray: '6, 6',
+            weight: 2,
+            opacity: 0.8
+        }).addTo(borderMap).bindTooltip("NATIONAL BORDER PERIMETER LINE", {permanent: true, className: "font-mono text-xs"});
+
+        // Virtual Geofence Polygon (Restricted Zone A)
+        const geofenceCoords = [
+            [31.6280, 74.8740],
+            [31.6300, 74.8790],
+            [31.6240, 74.8820],
+            [31.6220, 74.8770]
+        ];
+        geofencePolygon = L.polygon(geofenceCoords, {
+            color: '#f59e0b',
+            fillColor: '#f59e0b',
+            fillOpacity: 0.15,
+            weight: 2
+        }).addTo(borderMap).bindPopup("<b>RESTRICTED ZONE A</b><br>High-Risk Perimeter Sector<br>Status: SECURE");
+
+        // Border Outpost Markers (BOPs)
+        const bops = [
+            { id: "BOP ALPHA-07", lat: 31.6254, lng: 74.8765 },
+            { id: "BOP CHARLIE-03", lat: 31.6350, lng: 74.8720 },
+            { id: "BOP DELTA-09", lat: 31.6180, lng: 74.8920 }
+        ];
+        bops.forEach(bop => {
+            L.circleMarker([bop.lat, bop.lng], {
+                radius: 8,
+                color: '#38bdf8',
+                fillColor: '#0284c7',
+                fillOpacity: 0.8
+            }).addTo(borderMap).bindPopup(`<b>${bop.id}</b><br>Border Outpost<br>Cameras: 18 | Online: 17`);
         });
 
-        // Socket with REST Polling Fallback
-        var socket = null;
-        if (typeof io !== 'undefined') {
-            try {
-                socket = io();
-            } catch(e) { console.warn("SocketIO init warning:", e); }
+        // CCTV Camera Markers with FOV Cones
+        const cameras = [
+            { id: "CAM-042", name: "BOP ALPHA-07", lat: 31.6254, lng: 74.8765, status: "incident" },
+            { id: "CAM-071", name: "Border Road 12", lat: 31.6312, lng: 74.8821, status: "warning" },
+            { id: "CAM-039", name: "Sector Alpha", lat: 31.6220, lng: 74.8710, status: "online" },
+            { id: "CAM-041", name: "Outpost N", lat: 31.6240, lng: 74.8745, status: "online" },
+            { id: "CAM-013", name: "Gate 04", lat: 31.6380, lng: 74.8690, status: "online" },
+            { id: "CAM-032", name: "Checkpost 2", lat: 31.6190, lng: 74.8850, status: "online" }
+        ];
+
+        cameras.forEach(cam => {
+            let color = '#10b981';
+            if (cam.status === 'incident') color = '#ef4444';
+            if (cam.status === 'warning') color = '#f59e0b';
+
+            const marker = L.circleMarker([cam.lat, cam.lng], {
+                radius: 6,
+                color: color,
+                fillColor: color,
+                fillOpacity: 0.9
+            }).addTo(borderMap);
+
+            marker.bindPopup(`
+                <div style="font-family:sans-serif; font-size:12px;">
+                    <b style="color:${color};">${cam.id}</b> (${cam.name})<br>
+                    Status: <b>${cam.status.toUpperCase()}</b><br>
+                    FPS: 28.4 | Latency: 31ms<br>
+                    <button style="margin-top:6px; padding:3px 8px; background:#1e293b; color:#fff; border:1px solid #334155; border-radius:3px; cursor:pointer;" onclick="selectCamera('${cam.id}')">SELECT STREAM</button>
+                </div>
+            `);
+
+            cameraMarkers[cam.id] = marker;
+        });
+
+        // Subject P-014 Movement Trajectory Polyline
+        const trajectoryCoords = [
+            [31.6220, 74.8710], // CAM-039
+            [31.6240, 74.8745], // CAM-041
+            [31.6254, 74.8765], // CAM-042
+            [31.6265, 74.8780]  // Geofence Breach Point
+        ];
+
+        trajectoryPolyline = L.polyline(trajectoryCoords, {
+            color: '#ef4444',
+            weight: 3,
+            opacity: 0.9
+        }).addTo(borderMap).bindTooltip("TRACK P-014 TRAJECTORY", {className: "font-mono text-xs"});
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        initMap();
+    });
+
+    function selectCamera(camId) {
+        if (cameraMarkers[camId]) {
+            const marker = cameraMarkers[camId];
+            borderMap.setView(marker.getLatLng(), 16);
+            marker.openPopup();
         }
-        var totalStats = { frames: 0, people: 0, vehicles: 0, alerts: 0 };
-        
-        if (socket) {
-            socket.on('stats_update', function(data) {
-                updateDashboardStats(data);
-            });
-            
-            socket.on('new_alert', function(data) {
-                var alertsList = document.getElementById('alertsList');
-                var alertDiv = document.createElement('div');
-                alertDiv.className = 'alert-item warning';
-                alertDiv.innerHTML = '<span class="cam">[' + data.camera + ']</span> ' + data.message + ' <span class="time">' + data.timestamp + '</span>';
-                alertsList.insertBefore(alertDiv, alertsList.firstChild);
-                if (alertsList.children.length > 30) {
-                    alertsList.removeChild(alertsList.lastChild);
-                }
-                document.getElementById('alertCount').textContent = document.querySelectorAll('#alertsList .alert-item').length;
-            });
+    }
+
+    function focusIncidentOnMap() {
+        borderMap.setView([31.6254, 74.8765], 16);
+        if (cameraMarkers['CAM-042']) {
+            cameraMarkers['CAM-042'].openPopup();
         }
+    }
 
-        function updateDashboardStats(data) {
-            if (data.camera) {
-                var fpsElem = document.getElementById('fps_' + data.camera);
-                if (fpsElem) fpsElem.textContent = '⚡ ' + (data.fps || '--') + ' FPS';
-                var statsElem = document.getElementById('stats_' + data.camera);
-                if (statsElem) statsElem.textContent = '👤 ' + (data.people_per_frame || 0) + ' 🚗 ' + (data.vehicles_per_frame || 0);
-            }
-            
-            if (data.alerts !== undefined) {
-                document.getElementById('totalAlerts').textContent = data.alerts.length || 0;
-                document.getElementById('totalAlertsBadge').textContent = '🚨 Alerts: ' + (data.alerts.length || 0);
-                document.getElementById('alertCount').textContent = data.alerts.length || 0;
-            }
-            if (data.uptime !== undefined) {
-                document.getElementById('uptime').textContent = '⏱️ Uptime: ' + formatUptime(data.uptime);
-            }
-        }
+    function acknowledgeIncident() {
+        document.getElementById('incident-badge').className = "badge badge-amber";
+        document.getElementById('incident-badge').textContent = "ACKNOWLEDGED #IBV-240184";
+        document.getElementById('threat-status-1').className = "badge badge-green";
+        document.getElementById('threat-status-1').textContent = "INVESTIGATING";
+        alert("Incident #IBV-240184 Acknowledged. Status set to INVESTIGATING.");
+    }
 
-        // Periodic REST polling fallback
-        setInterval(function() {
-            fetch('/api/stats')
-                .then(res => res.json())
-                .then(data => {
-                    if (data && data.status === 'online') {
-                        updateDashboardStats(data);
-                    }
-                }).catch(err => console.log("Stats poll error:", err));
-        }, 2000);
+    // End-to-End Incident Simulation Trigger
+    function runIncidentSimulation() {
+        switchView('overview');
+        alert("🚀 Starting End-to-End Incident Simulation Flow...");
 
+        // Step 1: Center Map & Reset
+        borderMap.setView([31.6220, 74.8710], 15);
+        document.getElementById('copilot-summary').textContent = "Simulation initialized: Tracking subject P-014 moving from CAM-039 towards Sector Alpha perimeter...";
 
-        function formatUptime(seconds) {
-            var mins = Math.floor(seconds / 60);
-            var secs = seconds % 60;
-            if (mins > 60) {
-                var hrs = Math.floor(mins / 60);
-                mins = mins % 60;
-                return hrs + 'h ' + mins + 'm ' + secs + 's';
-            }
-            return mins + 'm ' + secs + 's';
-        }
+        // Step 2: Trajectory Advance to CAM-041
+        setTimeout(() => {
+            borderMap.panTo([31.6240, 74.8745]);
+            document.getElementById('copilot-summary').textContent = "Subject P-014 detected at CAM-041. Trajectory correlated. Proximity to Restricted Zone A increasing.";
+        }, 3000);
 
-        // Initial load
-        fetch('/api/alerts')
-            .then(response => response.json())
-            .then(data => {
-                var alertsList = document.getElementById('alertsList');
-                alertsList.innerHTML = '';
-                data.alerts.slice(-20).reverse().forEach(function(alert) {
-                    var alertDiv = document.createElement('div');
-                    alertDiv.className = 'alert-item warning';
-                    alertDiv.innerHTML = alert;
-                    alertsList.appendChild(alertDiv);
-                });
-                if (data.alerts.length === 0) {
-                    alertsList.innerHTML = '<div style="color:#667788;text-align:center;padding:20px;font-size:13px;">No alerts detected</div>';
-                }
-                document.getElementById('alertCount').textContent = data.alerts.length;
-            });
-        
-        // Fetch history
-        fetch('/api/stats')
-            .then(response => response.json())
-            .then(data => {
-                data.history.forEach(function(item) {
-                    chart.data.labels.push(item.timestamp);
-                    chart.data.datasets[0].data.push(item.people);
-                    chart.data.datasets[1].data.push(item.vehicles);
-                });
-                chart.update('none');
-            });
-    </script>
+        // Step 3: Geofence Breach at CAM-042
+        setTimeout(() => {
+            borderMap.panTo([31.6254, 74.8765]);
+            geofencePolygon.setStyle({ color: '#ef4444', fillColor: '#ef4444', fillOpacity: 0.35 });
+            document.getElementById('incident-card-box').style.boxShadow = "0 0 25px rgba(239, 68, 68, 0.4)";
+            document.getElementById('incident-score').textContent = "91 / 100";
+            document.getElementById('copilot-summary').textContent = "CRITICAL ALERT: Subject P-014 breached Restricted Zone A boundary at CAM-042! Threat Score: 91/100. Dispatch recommended.";
+        }, 6000);
+    }
+</script>
 </body>
 </html>

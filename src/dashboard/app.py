@@ -1,6 +1,6 @@
 # ============================================================
 # IBVAP - Intelligent Border Video Analytics Platform
-# Backend Application Factory & REST / SocketIO Module
+# Backend Application Factory & REST / SocketIO / Ollama LLM Module
 # ============================================================
 
 import os
@@ -13,6 +13,7 @@ from datetime import datetime
 from flask import Flask, render_template, Response, jsonify, request, send_file
 from flask_socketio import SocketIO
 from analytics.detector import ObjectDetector
+from utils.llm_integration import IBVAP_LLM
 
 from utils.helpers import resolve_video_path, resolve_model_path
 
@@ -30,16 +31,24 @@ def create_app(video_source=None, model_path=None):
     detector = ObjectDetector(model_path=actual_model_path)
     detector_lock = threading.Lock()
 
+    # Ollama Mistral LLM Integration
+    try:
+        llm = IBVAP_LLM(model="mistral:latest")
+    except Exception as e:
+        logger.warning(f"Ollama LLM init warning ({e}). Running fallback intelligence engine.")
+        llm = None
+
     pedestrian_video = resolve_video_path("data/videos/top_view_pedestrian.mp4")
     virat_video = resolve_video_path(video_source or "data/videos/VIRAT_S_000001.mp4")
 
     video1_source = virat_video if os.path.exists(virat_video) else pedestrian_video
     video2_source = pedestrian_video if os.path.exists(pedestrian_video) else video1_source
 
+    # 2 Primary CCTV Channels for Direct Video Playback
     default_cameras = {
         'camera1': {
             'id': 'CAM-042',
-            'name': 'BOP ALPHA-07 Perimeter',
+            'name': 'BOP ALPHA-07 Perimeter Feed',
             'path': video1_source,
             'fence_y': 540,
             'color': '#00d4ff',
@@ -86,8 +95,8 @@ def create_app(video_source=None, model_path=None):
         return jsonify({
             'status': 'online',
             'system_status': 'OPERATIONAL',
-            'cameras_online': 247,
-            'cameras_total': 255,
+            'cameras_online': 2,
+            'cameras_total': 2,
             'ai_models_active': 12,
             'ai_models_total': 12,
             'active_alerts': 16,
@@ -108,6 +117,22 @@ def create_app(video_source=None, model_path=None):
             'alerts': detector.get_alerts()[:10]
         })
 
+    @app.route('/api/copilot', methods=['GET', 'POST'])
+    def copilot_assessment():
+        """Generates dynamic AI Surveillance Copilot assessment using Ollama Mistral LLM."""
+        data = request.get_json() if request.is_json else {}
+        cam = data.get('camera', 'CAM-042 (Sector Alpha)')
+        threat_score = data.get('threat_score', 91)
+        
+        if llm:
+            prompt = f"You are IBVAP AI Copilot. Camera {cam} detected perimeter breach with threat score {threat_score}/100. Provide a 2-sentence tactical command assessment and immediate dispatch action."
+            res = llm.query(prompt, timeout=12)
+            if res and not res.startswith("Error"):
+                return jsonify({'copilot_summary': res, 'source': 'Ollama Mistral LLM'})
+
+        fallback_res = f"Subject P-014 tracked across Sector Alpha ({cam}). High probability perimeter breach with threat score {threat_score}/100. Immediate dispatch to BOP Alpha-07 recommended."
+        return jsonify({'copilot_summary': fallback_res, 'source': 'IBVAP Intelligence Engine'})
+
     def generate_frames(path):
         use_file = path and os.path.exists(path)
         cap = cv2.VideoCapture(path) if use_file else None
@@ -118,7 +143,6 @@ def create_app(video_source=None, model_path=None):
             if cap and cap.isOpened():
                 ret, frame = cap.read()
                 if not ret or frame is None:
-                    # Continuous Infinite Looping: Re-open video capture on EOF
                     cap.release()
                     cap = cv2.VideoCapture(path)
                     ret, frame = cap.read()
@@ -128,7 +152,6 @@ def create_app(video_source=None, model_path=None):
                     ret, frame = cap.read()
 
             if frame is None:
-                # Synthetic simulated CCTV frame fallback if file missing
                 frame = np.zeros((720, 1280, 3), dtype=np.uint8)
                 cv2.rectangle(frame, (0, 0), (1280, 720), (15, 23, 35), -1)
                 for x in range(0, 1280, 80):
@@ -145,11 +168,9 @@ def create_app(video_source=None, model_path=None):
                             cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 212, 255), 2)
                 frame_idx += 1
 
-            # Thread-safe object detection & tracking
             with detector_lock:
                 annotated_frame, stats = detector.process_frame(frame)
                 
-            # High-definition 98% JPEG encoding quality (no blur)
             ret, buffer = cv2.imencode('.jpg', annotated_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 98])
             if not ret:
                 continue
@@ -170,7 +191,6 @@ def create_app(video_source=None, model_path=None):
 
     @app.route('/direct_video/<cam_id>')
     def direct_video(cam_id='camera1'):
-        """Serves direct crystal-clear HD MP4 video file stream."""
         if cam_id == 'camera2' or cam_id == 'CAM-071':
             target_path = default_cameras['camera2']['path']
         else:

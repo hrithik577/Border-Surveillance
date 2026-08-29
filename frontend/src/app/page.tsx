@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TopCommandBar } from '@/components/layout/TopCommandBar';
 import { Sidebar, NavItem } from '@/components/layout/Sidebar';
 import { BorderMap } from '@/components/map/BorderMap';
@@ -35,24 +35,40 @@ export default function Home() {
   const [incidents, setIncidents] = useState<IncidentAlert[]>(mockIncidents);
   const [currentIncident, setCurrentIncident] = useState<IncidentAlert>(mockIncidents[0]);
   const [copilotSummary, setCopilotSummary] = useState<string>(
-    'Subject P-014 tracked across 3 camera sectors. High probability of perimeter breach in Restricted Zone A. Threat score elevated to 91/100. Recommend immediate dispatch to BOP Alpha-07.'
+    'Ollama Mistral LLM Copilot: Subject P-014 tracked across Sector Alpha (CAM-042). High probability perimeter breach with threat score 91/100. Immediate dispatch to BOP Alpha-07 recommended.'
   );
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  // Fetch Ollama LLM Copilot assessment from backend API
+  const fetchLlmCopilot = async (cam = 'CAM-042 (Sector Alpha)', threatScore = 91) => {
+    try {
+      const res = await fetch('http://127.0.0.1:5000/api/copilot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ camera: cam, threat_score: threatScore })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.copilot_summary) {
+          setCopilotSummary(data.copilot_summary);
+        }
+      }
+    } catch (e) {
+      console.warn('Ollama Copilot fetch note:', e);
+    }
+  };
+
+  useEffect(() => {
+    fetchLlmCopilot();
+  }, []);
 
   // End-to-End Interactive Simulation Trigger
   const handleRunSimulation = () => {
     setActiveView('overview');
-    setSelectedCameraId('CAM-039');
+    setSelectedCameraId('CAM-071');
     setCopilotSummary(
-      'Simulation Mode Active: Tracking subject P-014 moving from CAM-039 towards Sector Alpha perimeter...'
+      'Ollama Mistral LLM: Simulation Active. Subject P-014 trajectory correlated on CAM-071 top-view pedestrian feed.'
     );
-
-    setTimeout(() => {
-      setSelectedCameraId('CAM-041');
-      setCopilotSummary(
-        'Subject P-014 trajectory correlated via CAM-041. Proximity to Restricted Zone A increasing rapidly.'
-      );
-    }, 3000);
 
     setTimeout(() => {
       setSelectedCameraId('CAM-042');
@@ -61,10 +77,8 @@ export default function Home() {
         threatScore: 95,
         status: 'NEW'
       });
-      setCopilotSummary(
-        'CRITICAL ALERT: Subject P-014 breached Restricted Zone A boundary at CAM-042! Threat Score: 95/100. Dispatch recommended.'
-      );
-    }, 6000);
+      fetchLlmCopilot('CAM-042 (Sector Alpha Perimeter)', 95);
+    }, 4000);
   };
 
   const handleAcknowledge = () => {
@@ -98,8 +112,8 @@ export default function Home() {
               <div className="grid grid-cols-8 gap-2 shrink-0">
                 <div className="bg-surface border border-border p-2 rounded flex flex-col justify-between">
                   <div className="text-[9px] text-slate-400 font-bold uppercase">CAMERAS ONLINE</div>
-                  <div className="text-base font-mono font-bold text-emerald-400">247 / 255</div>
-                  <div className="text-[9px] text-slate-400 font-mono">+2.4% vs 24h</div>
+                  <div className="text-base font-mono font-bold text-emerald-400">2 / 2 ACTIVE</div>
+                  <div className="text-[9px] text-slate-400 font-mono">100% OPERATIONAL</div>
                 </div>
                 <div className="bg-surface border border-border p-2 rounded flex flex-col justify-between">
                   <div className="text-[9px] text-slate-400 font-bold uppercase">PERSONS DETECTED</div>
@@ -132,9 +146,9 @@ export default function Home() {
                   <div className="text-[9px] text-rose-400 font-mono">BOUNDARY BREACH</div>
                 </div>
                 <div className="bg-surface border border-border p-2 rounded flex flex-col justify-between">
-                  <div className="text-[9px] text-slate-400 font-bold uppercase">AI CONFIDENCE</div>
-                  <div className="text-base font-mono font-bold text-emerald-400">94.8%</div>
-                  <div className="text-[9px] text-slate-400 font-mono">PRECISION: 95.2%</div>
+                  <div className="text-[9px] text-slate-400 font-bold uppercase">OLLAMA LLM</div>
+                  <div className="text-base font-mono font-bold text-purple-400">MISTRAL</div>
+                  <div className="text-[9px] text-purple-400 font-mono">AI COPILOT ACTIVE</div>
                 </div>
               </div>
 
@@ -162,13 +176,13 @@ export default function Home() {
                   <AISurveillanceCopilot
                     summary={copilotSummary}
                     onTrack={() => alert('Subject P-014 locked on target track list.')}
-                    onCorrelate={() => alert('Cross-correlating CAM-039, CAM-041, CAM-042...')}
+                    onCorrelate={() => alert('Cross-correlating CAM-042 and CAM-071 feeds...')}
                     onEscalate={() => alert('Incident escalated to Sector Commander.')}
                   />
                 </div>
               </div>
 
-              {/* Lower Section (CCTV Wall + Analytics + Threat Feed) */}
+              {/* Lower Section (Dual CCTV Wall + Analytics + Threat Feed) */}
               <div className="grid grid-cols-12 gap-3 shrink-0">
                 <div className="col-span-7">
                   <CameraWall cameras={mockCameras} onSelectCamera={setSelectedCameraId} />

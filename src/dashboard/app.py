@@ -10,7 +10,7 @@ import logging
 import threading
 import numpy as np
 from datetime import datetime
-from flask import Flask, render_template, Response, jsonify, request
+from flask import Flask, render_template, Response, jsonify, request, send_file
 from flask_socketio import SocketIO
 from analytics.detector import ObjectDetector
 
@@ -108,34 +108,6 @@ def create_app(video_source=None, model_path=None):
             'alerts': detector.get_alerts()[:10]
         })
 
-    @app.route('/api/alerts')
-    def get_alerts():
-        alerts_data = [
-            {
-                'id': 'IBV-240184',
-                'time': '21:43:18 IST',
-                'severity': 'CRITICAL',
-                'event': 'Unauthorized perimeter crossing',
-                'location': 'Sector Alpha / BOP-07',
-                'camera': 'CAM-042',
-                'confidence': '96.7%',
-                'threat_score': 91,
-                'status': 'INVESTIGATING'
-            },
-            {
-                'id': 'IBV-240183',
-                'time': '21:42:51 IST',
-                'severity': 'HIGH',
-                'event': 'Virtual fence breach',
-                'location': 'Border Road 12',
-                'camera': 'CAM-071',
-                'confidence': '94.2%',
-                'threat_score': 84,
-                'status': 'OPEN'
-            }
-        ]
-        return jsonify({'alerts': alerts_data})
-
     def generate_frames(path):
         use_file = path and os.path.exists(path)
         cap = cv2.VideoCapture(path) if use_file else None
@@ -177,7 +149,8 @@ def create_app(video_source=None, model_path=None):
             with detector_lock:
                 annotated_frame, stats = detector.process_frame(frame)
                 
-            ret, buffer = cv2.imencode('.jpg', annotated_frame)
+            # High-definition 98% JPEG encoding quality (no blur)
+            ret, buffer = cv2.imencode('.jpg', annotated_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 98])
             if not ret:
                 continue
                 
@@ -194,6 +167,17 @@ def create_app(video_source=None, model_path=None):
         else:
             target_path = default_cameras['camera1']['path']
         return Response(generate_frames(target_path), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+    @app.route('/direct_video/<cam_id>')
+    def direct_video(cam_id='camera1'):
+        """Serves direct crystal-clear HD MP4 video file stream."""
+        if cam_id == 'camera2' or cam_id == 'CAM-071':
+            target_path = default_cameras['camera2']['path']
+        else:
+            target_path = default_cameras['camera1']['path']
+        if os.path.exists(target_path):
+            return send_file(target_path, mimetype='video/mp4')
+        return jsonify({'error': 'Video file not found'}), 404
 
     app.socketio = socketio
     return app

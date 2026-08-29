@@ -1,8 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { IncidentAlert } from '@/types/surveillance';
-import { ShieldAlert, Eye, MapPin, Camera, Clock, CheckCircle } from 'lucide-react';
+import { ShieldAlert, Eye, MapPin, Camera, Clock, CheckCircle, Video } from 'lucide-react';
 
 interface IncidentPanelProps {
   incident: IncidentAlert;
@@ -17,6 +17,8 @@ export const IncidentPanel: React.FC<IncidentPanelProps> = ({
   onTrackMap,
   onViewEvidence
 }) => {
+  const [useDirectVideo, setUseDirectVideo] = useState<boolean>(true);
+
   return (
     <div className="bg-surface border border-rose-500/80 rounded p-3 space-y-3 shadow-[0_0_15px_rgba(239,68,68,0.15)] shrink-0">
       <div className="flex items-center justify-between">
@@ -64,13 +66,35 @@ export const IncidentPanel: React.FC<IncidentPanelProps> = ({
         </div>
       </div>
 
-      {/* Evidence Snapshot Frame */}
-      <div className="relative w-full h-32 bg-black border border-border rounded overflow-hidden">
-        <img
-          src="http://127.0.0.1:5000/video_feed/camera1"
-          alt="Evidence Stream"
-          className="w-full h-full object-cover opacity-90"
-        />
+      {/* Evidence Snapshot / Video Frame */}
+      <div className="relative w-full h-36 bg-black border border-border rounded overflow-hidden">
+        {useDirectVideo ? (
+          <video
+            src="http://127.0.0.1:5000/direct_video/camera1"
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <img
+            src="http://127.0.0.1:5000/video_feed/camera1"
+            alt="Evidence Stream"
+            className="w-full h-full object-cover opacity-90"
+          />
+        )}
+
+        {/* Overlay Badge */}
+        <div className="absolute top-2 right-2">
+          <button
+            onClick={() => setUseDirectVideo(!useDirectVideo)}
+            className="px-1.5 py-0.5 rounded text-[8px] font-mono bg-black/80 text-sky-400 border border-sky-500/40 hover:bg-sky-500/20"
+          >
+            {useDirectVideo ? 'HD MP4' : 'AI STREAM'}
+          </button>
+        </div>
+
         <div className="absolute bottom-1.5 left-1.5 bg-black/80 px-1.5 py-0.5 rounded text-[9px] font-mono text-cyan-400 border border-cyan-500/30">
           SUBJECT P-014 | BOUNDARY BREACH
         </div>

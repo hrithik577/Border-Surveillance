@@ -26,18 +26,22 @@ def main():
         print("\nExiting...")
         return
 
+    # Target Python 3.11 with PyTorch 2.11.0+cu128 CUDA 12.8
+    py311_path = r"C:\Users\bhrit\AppData\Local\Programs\Python\Python311\python.exe"
+    py_exec = py311_path if os.path.exists(py311_path) else sys.executable
+
     if choice == '1':
-        os.system(f"{sys.executable} main.py")
+        os.system(f'"{py_exec}" main.py')
     elif choice == '2':
-        os.system(f"{sys.executable} scripts/standalone/command_center.py")
+        os.system(f'"{py_exec}" scripts/standalone/command_center.py')
     elif choice == '3':
-        os.system(f"{sys.executable} scripts/standalone/dashboard.py")
+        os.system(f'"{py_exec}" scripts/standalone/dashboard.py')
     elif choice == '4':
-        os.system(f"{sys.executable} scripts/standalone/dashboard_dual.py")
+        os.system(f'"{py_exec}" scripts/standalone/dashboard_dual.py')
     elif choice == '5':
-        os.system(f"{sys.executable} scripts/standalone/ibvap_direct.py")
+        os.system(f'"{py_exec}" scripts/standalone/ibvap_direct.py')
     elif choice == '6':
-        os.system(f"{sys.executable} scripts/tests/detection_test.py")
+        os.system(f'"{py_exec}" scripts/tests/detection_test.py')
     else:
         print("Exiting IBVAP Launcher...")
 

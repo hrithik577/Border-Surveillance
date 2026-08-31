@@ -14,7 +14,8 @@ import {
   Network,
   Cpu,
   FileText,
-  Settings
+  Settings,
+  Workflow
 } from 'lucide-react';
 
 export type NavItem =
@@ -28,6 +29,7 @@ export type NavItem =
   | 'incidents'
   | 'evidence'
   | 'cameras'
+  | 'architecture'
   | 'system'
   | 'audit'
   | 'settings';
@@ -120,6 +122,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onSelectView }) =>
             <div className={getItemClasses('cameras')} onClick={() => onSelectView('cameras')}>
               <Network className="w-4 h-4" />
               <span>Camera Network</span>
+            </div>
+            <div className={getItemClasses('architecture')} onClick={() => onSelectView('architecture')}>
+              <Workflow className="w-4 h-4 text-purple-400" />
+              <span className="text-purple-300 font-medium">System Architecture</span>
             </div>
             <div className={getItemClasses('system')} onClick={() => onSelectView('system')}>
               <Cpu className="w-4 h-4" />

@@ -40,6 +40,48 @@ Thumbs.db
 .venv/
 venv/
 env/
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Data & Large Media
+data/videos/
+data/models/
+data/logs/
+data/outputs/
+data/alerts/
+models/
+mediamtx/
+*.mp4
+*.mpg
+*.avi
+*.mov
+*.pt
+*.pth
+*.zip
+*.exe
+
+# IDE & OS
+.vscode/
+.idea/
+*.swp
+*.swo
+Thumbs.db
+.DS_Store
+
+# Environment
+.env
+.venv/
+venv/
+env/
 
 # Debug Artifacts & Screenshots
 data/models/yolov8n.pt
@@ -49,4 +91,6 @@ debug_frame.jpg
 frontend/node_modules/
 frontend/.next/
 frontend/out/
+frontend/tsconfig.tsbuildinfo
+data/*.db
 !static/**

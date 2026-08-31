@@ -94,26 +94,31 @@ class IBVAP:
         # Draw virtual fence
         annotated_frame = self.draw_virtual_fence(annotated_frame)
         
-        # Check intrusions
+        # Check intrusions and draw green bounding boxes
         if hasattr(results[0], 'boxes') and results[0].boxes is not None:
             boxes = results[0].boxes.xyxy.cpu().numpy()
             track_ids = results[0].boxes.id.cpu().numpy() if results[0].boxes.id is not None else None
             
-            if track_ids is not None:
-                for box, track_id in zip(boxes, track_ids):
-                    x1, y1, x2, y2 = box
-                    center_y = (y1 + y2) // 2
-                    fence_y = self.fence_start[1]
-                    
-                    if abs(center_y - fence_y) < 30:
-                        alert_msg = f"⚠️ ALERT: Track ID {track_id} crossed fence at {datetime.now()}"
-                        self.alert_log.append(alert_msg)
-                        print(alert_msg)
-                        
-                        x1, y1, x2, y2 = box.astype(int)
-                        cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), (0, 0, 255), 3)
-                        cv2.putText(annotated_frame, "🚨 INTRUSION!", (x1, y1-10), 
-                                   cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+            for idx, box in enumerate(boxes):
+                x1, y1, x2, y2 = box.astype(int)
+                track_id = int(track_ids[idx]) if track_ids is not None else idx + 1
+                center_y = (y1 + y2) // 2
+                fence_y = self.fence_start[1]
+                
+                is_intrusion = abs(center_y - fence_y) < 30
+                color = (0, 0, 255) if is_intrusion else (0, 255, 0)
+                
+                cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), color, 2)
+                
+                if is_intrusion:
+                    alert_msg = f"⚠️ ALERT: Track ID {track_id} crossed fence at {datetime.now()}"
+                    self.alert_log.append(alert_msg)
+                    print(alert_msg)
+                    cv2.putText(annotated_frame, f"🚨 INTRUSION! ID:{track_id}", (x1, max(15, y1-10)), 
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                else:
+                    cv2.putText(annotated_frame, f"TARGET ID:{track_id}", (x1, max(15, y1-10)), 
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
         
         self.add_info_overlay(annotated_frame, face_count)
         return annotated_frame

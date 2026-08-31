@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { CameraNode } from '@/types/surveillance';
-import { Video, Sparkles } from 'lucide-react';
+import { Video, Sparkles, Play, Pause, Square, RotateCcw } from 'lucide-react';
 
 interface CameraWallProps {
   cameras: CameraNode[];
@@ -10,7 +10,24 @@ interface CameraWallProps {
 }
 
 export const CameraWall: React.FC<CameraWallProps> = ({ cameras, onSelectCamera }) => {
-  const [useDirectVideo, setUseDirectVideo] = useState<boolean>(true);
+  const [useDirectVideo, setUseDirectVideo] = useState<boolean>(false);
+  const [playbackState, setPlaybackState] = useState<'PLAYING' | 'PAUSED' | 'STOPPED'>('PLAYING');
+
+  const sendControlCommand = async (command: string) => {
+    try {
+      const res = await fetch('http://127.0.0.1:5000/api/video/control', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ command })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPlaybackState(data.state || 'PLAYING');
+      }
+    } catch (e) {
+      console.warn('Video control fetch note:', e);
+    }
+  };
 
   const getDirectVideoUrl = (index: number, camId: string) => {
     if (index === 1 || camId === 'CAM-071') {
@@ -30,23 +47,52 @@ export const CameraWall: React.FC<CameraWallProps> = ({ cameras, onSelectCamera 
     <div className="bg-surface border border-border rounded p-3 space-y-2">
       <div className="flex items-center justify-between">
         <div className="text-[11px] font-bold uppercase tracking-wider text-slate-100 flex items-center gap-2">
-          📹 DUAL CCTV SURVEILLANCE MATRIX (DIRECT HD CHANNELS)
+          📹 DIRECT SURVEILLANCE VIDEO INGESTION PIPELINE
         </div>
         <div className="flex items-center gap-2">
+          {/* Playback Controls: Start, Pause, Resume, Stop, Restart */}
+          <div className="flex items-center gap-1 bg-base p-1 rounded border border-border">
+            <button
+              onClick={() => sendControlCommand(playbackState === 'PAUSED' ? 'resume' : 'play')}
+              title="Play / Resume"
+              className="p-1 hover:bg-emerald-500/20 text-emerald-400 rounded transition-all"
+            >
+              <Play className="w-3.5 h-3.5 fill-emerald-400" />
+            </button>
+            <button
+              onClick={() => sendControlCommand('pause')}
+              title="Pause"
+              className="p-1 hover:bg-amber-500/20 text-amber-400 rounded transition-all"
+            >
+              <Pause className="w-3.5 h-3.5 fill-amber-400" />
+            </button>
+            <button
+              onClick={() => sendControlCommand('stop')}
+              title="Stop"
+              className="p-1 hover:bg-rose-500/20 text-rose-400 rounded transition-all"
+            >
+              <Square className="w-3.5 h-3.5 fill-rose-400" />
+            </button>
+            <button
+              onClick={() => sendControlCommand('restart')}
+              title="Restart"
+              className="p-1 hover:bg-sky-500/20 text-sky-400 rounded transition-all"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
           <button
             onClick={() => setUseDirectVideo(!useDirectVideo)}
-            className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border transition-all flex items-center gap-1 ${
+            className={`px-2 py-1 rounded text-[10px] font-mono font-bold border transition-all flex items-center gap-1 ${
               useDirectVideo
                 ? 'bg-sky-500/20 text-sky-400 border-sky-500/40'
                 : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
             }`}
           >
             {useDirectVideo ? <Video className="w-3 h-3" /> : <Sparkles className="w-3 h-3" />}
-            {useDirectVideo ? 'DIRECT HD MP4 MODE' : 'AI MJPEG OVERLAY MODE'}
+            {useDirectVideo ? 'RAW HD MP4' : 'AI REALTIME OVERLAY'}
           </button>
-          <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-            2 PRIMARY CHANNELS ACTIVE
-          </span>
         </div>
       </div>
 
@@ -74,23 +120,7 @@ export const CameraWall: React.FC<CameraWallProps> = ({ cameras, onSelectCamera 
               />
             )}
 
-            {/* Precision Bounding Box Accents for Direct HD Mode */}
-            {useDirectVideo && (
-              <div className="absolute inset-0 pointer-events-none border border-sky-500/30 p-2">
-                <div className="w-full h-full relative">
-                  <div className="absolute bottom-6 left-[30%] w-20 h-32 border-2 border-rose-500 bg-rose-500/10">
-                    <span className="absolute -top-5 left-0 bg-base px-1.5 py-0.5 text-[9px] font-mono text-rose-400 border border-rose-500/40 font-bold">
-                      {cam.id === 'CAM-042' ? 'P-014 | PERSON | 96.7%' : 'P-018 | PEDESTRIAN | 94.2%'}
-                    </span>
-                  </div>
-                  <div className="absolute bottom-[35%] left-0 right-0 h-0.5 bg-rose-500/80 shadow-[0_0_10px_rgba(239,68,68,0.8)]">
-                    <span className="absolute -top-3 left-2 text-[8px] font-mono text-rose-400 font-bold bg-base px-1">
-                      RESTRICTED BORDER LINE
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
+
 
             <div className="absolute top-2 left-2 bg-black/80 px-2 py-0.5 rounded text-[10px] font-mono text-slate-200 border border-border font-bold">
               {cam.id} | {cam.name}

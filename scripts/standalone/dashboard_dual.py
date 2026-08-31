@@ -150,19 +150,26 @@ def process_frame(frame, cam_id):
                 'track_id': track_id
             })
             
-            # Virtual fence intrusion detection
+            # Virtual fence intrusion detection and bright green bounding box
             center_y = (y1 + y2) // 2
             fence_y = cam['fence_y']
-            if abs(center_y - fence_y) < 30:
+            is_intrusion = abs(center_y - fence_y) < 30
+            color = (0, 0, 255) if is_intrusion else (0, 255, 0)
+            
+            cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 2)
+            
+            if is_intrusion:
                 alert_msg = f"🚨 INTRUSION: {class_name} (ID: {track_id}) on {cam['name']} at {datetime.now().strftime('%H:%M:%S')}"
                 alert_log.append(alert_msg)
                 stats[cam_id]['total_alerts'] += 1
                 intrusion_alerts.append(alert_msg)
                 print(f"[{cam['name']}] {alert_msg}")
                 
-                cv2.rectangle(annotated, (x1, y1), (x2, y2), (0, 0, 255), 3)
-                cv2.putText(annotated, "🚨 INTRUSION!", (x1, y1-10), 
+                cv2.putText(annotated, f"🚨 INTRUSION! {class_name}", (x1, max(15, y1-10)), 
                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+            else:
+                cv2.putText(annotated, f"{class_name.upper()} ID:{track_id} {int(confidence*100)}%", (x1, max(15, y1-10)), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
     
     # Update stats
     stats[cam_id]['total_frames'] += 1

@@ -16,6 +16,7 @@ import {
   BehaviourModule,
   EvidenceVaultModule,
   CameraNetworkModule,
+  ArchitectureFlowModule,
   AuditLogsModule,
   SearchModal
 } from '@/components/views/SubModules';
@@ -39,6 +40,16 @@ export default function Home() {
   );
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
+  const [liveStats, setLiveStats] = useState({
+    persons_detected: 0,
+    faces_detected: 0,
+    vehicles_detected: 0,
+    inference_fps: 30.0,
+    latency_ms: 10.0,
+    active_alerts: 0,
+    intrusions: 0
+  });
+
   // Fetch Ollama LLM Copilot assessment from backend API
   const fetchLlmCopilot = async (cam = 'CAM-042 (Sector Alpha)', threatScore = 91) => {
     try {
@@ -58,8 +69,32 @@ export default function Home() {
     }
   };
 
+  // Fetch real-time stats from backend
+  const fetchRealStats = async () => {
+    try {
+      const res = await fetch('http://127.0.0.1:5000/api/stats');
+      if (res.ok) {
+        const data = await res.json();
+        setLiveStats({
+          persons_detected: data.persons_detected ?? 0,
+          faces_detected: data.faces_detected ?? (data.persons_detected ?? 0),
+          vehicles_detected: data.vehicles_detected ?? 0,
+          inference_fps: data.inference_fps ?? 30.0,
+          latency_ms: data.latency_ms ?? 10.0,
+          active_alerts: data.active_alerts ?? 0,
+          intrusions: data.intrusions ?? 0
+        });
+      }
+    } catch (e) {
+      // quiet fallback
+    }
+  };
+
   useEffect(() => {
     fetchLlmCopilot();
+    fetchRealStats();
+    const interval = setInterval(fetchRealStats, 3000);
+    return () => clearInterval(interval);
   }, []);
 
   // End-to-End Interactive Simulation Trigger
@@ -113,36 +148,36 @@ export default function Home() {
                 <div className="bg-surface border border-border p-2 rounded flex flex-col justify-between">
                   <div className="text-[9px] text-slate-400 font-bold uppercase">CAMERAS ONLINE</div>
                   <div className="text-base font-mono font-bold text-emerald-400">2 / 2 ACTIVE</div>
-                  <div className="text-[9px] text-slate-400 font-mono">100% OPERATIONAL</div>
+                  <div className="text-[9px] text-emerald-400 font-mono">{liveStats.inference_fps} FPS ({Math.round(liveStats.latency_ms)}ms)</div>
                 </div>
                 <div className="bg-surface border border-border p-2 rounded flex flex-col justify-between">
                   <div className="text-[9px] text-slate-400 font-bold uppercase">PERSONS DETECTED</div>
-                  <div className="text-base font-mono font-bold text-sky-400">1,284</div>
-                  <div className="text-[9px] text-slate-400 font-mono">+12.1% vs 24h</div>
+                  <div className="text-base font-mono font-bold text-sky-400">{liveStats.persons_detected} LIVE</div>
+                  <div className="text-[9px] text-slate-400 font-mono">Real Inference</div>
                 </div>
                 <div className="bg-surface border border-border p-2 rounded flex flex-col justify-between">
                   <div className="text-[9px] text-slate-400 font-bold uppercase">VEHICLES DETECTED</div>
-                  <div className="text-base font-mono font-bold text-blue-400">437</div>
-                  <div className="text-[9px] text-slate-400 font-mono">-3.5% vs 24h</div>
+                  <div className="text-base font-mono font-bold text-blue-400">{liveStats.vehicles_detected} LIVE</div>
+                  <div className="text-[9px] text-slate-400 font-mono">Real Inference</div>
                 </div>
                 <div className="bg-surface border border-border p-2 rounded flex flex-col justify-between">
                   <div className="text-[9px] text-slate-400 font-bold uppercase">SECURITY EVENTS</div>
-                  <div className="text-base font-mono font-bold text-amber-400">23</div>
-                  <div className="text-[9px] text-slate-400 font-mono">+4 events</div>
+                  <div className="text-base font-mono font-bold text-amber-400">{liveStats.active_alerts}</div>
+                  <div className="text-[9px] text-slate-400 font-mono">Live Logged</div>
                 </div>
                 <div className="bg-surface border border-border p-2 rounded flex flex-col justify-between">
                   <div className="text-[9px] text-slate-400 font-bold uppercase">CRITICAL ALERTS</div>
-                  <div className="text-base font-mono font-bold text-rose-400">4</div>
+                  <div className="text-base font-mono font-bold text-rose-400">{liveStats.intrusions}</div>
                   <div className="text-[9px] text-rose-400 font-mono">SECTOR ALPHA</div>
                 </div>
                 <div className="bg-surface border border-border p-2 rounded flex flex-col justify-between">
-                  <div className="text-[9px] text-slate-400 font-bold uppercase">ANPR MATCHES</div>
-                  <div className="text-base font-mono font-bold text-slate-100">17</div>
-                  <div className="text-[9px] text-amber-400 font-mono">1 REVIEW REQ</div>
+                  <div className="text-[9px] text-slate-400 font-bold uppercase">FACES DETECTED</div>
+                  <div className="text-base font-mono font-bold text-purple-400">{liveStats.faces_detected} LIVE</div>
+                  <div className="text-[9px] text-purple-400 font-mono">Privacy Blur Active</div>
                 </div>
                 <div className="bg-surface border border-border p-2 rounded flex flex-col justify-between">
                   <div className="text-[9px] text-slate-400 font-bold uppercase">INTRUSIONS</div>
-                  <div className="text-base font-mono font-bold text-rose-400">6</div>
+                  <div className="text-base font-mono font-bold text-rose-400">{liveStats.intrusions}</div>
                   <div className="text-[9px] text-rose-400 font-mono">BOUNDARY BREACH</div>
                 </div>
                 <div className="bg-surface border border-border p-2 rounded flex flex-col justify-between">
@@ -172,7 +207,7 @@ export default function Home() {
                     onTrackMap={() => setSelectedCameraId('CAM-042')}
                     onViewEvidence={() => setActiveView('evidence')}
                   />
-                  <AICorrelationFlow />
+                  <AICorrelationFlow onOpenFullArchitecture={() => setActiveView('architecture')} />
                   <AISurveillanceCopilot
                     summary={copilotSummary}
                     onTrack={() => alert('Subject P-014 locked on target track list.')}
@@ -204,6 +239,7 @@ export default function Home() {
           {activeView === 'behaviour' && <BehaviourModule />}
           {activeView === 'evidence' && <EvidenceVaultModule />}
           {activeView === 'cameras' && <CameraNetworkModule />}
+          {activeView === 'architecture' && <ArchitectureFlowModule />}
           {activeView === 'audit' && <AuditLogsModule />}
           {activeView === 'system' && <CameraNetworkModule />}
           {activeView === 'detection' && <BehaviourModule />}

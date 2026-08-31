@@ -102,19 +102,26 @@ def process_frame(frame):
                 'track_id': track_id
             })
             
-            # Virtual fence intrusion
+            # Virtual fence intrusion and high-visibility bounding box
             center_y = (y1 + y2) // 2
             fence_y = 540
-            if abs(center_y - fence_y) < 30:
+            is_intrusion = abs(center_y - fence_y) < 30
+            color = (0, 0, 255) if is_intrusion else (0, 255, 0)
+            
+            cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 2)
+            
+            if is_intrusion:
                 alert_msg = f"🚨 INTRUSION: {class_name} (ID: {track_id}) at {datetime.now().strftime('%H:%M:%S')}"
                 alerts.append(alert_msg)
                 stats['total_alerts'] += 1
                 print(alert_msg)
                 
-                cv2.rectangle(annotated, (x1, y1), (x2, y2), (0, 0, 255), 3)
-                cv2.putText(annotated, "🚨 INTRUSION!", (x1, y1-10), 
+                cv2.putText(annotated, f"🚨 INTRUSION! {class_name}", (x1, max(15, y1-10)), 
                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
                 socketio.emit('new_alert', {'message': alert_msg, 'timestamp': stats['timestamp']})
+            else:
+                cv2.putText(annotated, f"{class_name.upper()} ID:{track_id} {int(confidence*100)}%", (x1, max(15, y1-10)), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
     
     stats['total_frames'] += 1
     stats['total_people'] += people_count

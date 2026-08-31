@@ -1,21 +1,37 @@
 'use client';
 
 import React from 'react';
+import { Workflow, ArrowRight } from 'lucide-react';
 
-export const AICorrelationFlow: React.FC = () => {
+interface AICorrelationFlowProps {
+  onOpenFullArchitecture?: () => void;
+}
+
+export const AICorrelationFlow: React.FC<AICorrelationFlowProps> = ({ onOpenFullArchitecture }) => {
   const steps = [
-    { num: '01', title: 'PERSON DETECTED', detail: 'YOLOv8 sm_120 Neural Network' },
-    { num: '02', title: 'TRACK ESTABLISHED', detail: 'ByteTrack Multi-Object Tracker (P-014)' },
-    { num: '03', title: 'GEOFENCE PROXIMITY', detail: 'Restricted Zone A Vector Approach' },
-    { num: '04', title: 'BOUNDARY CROSSING', detail: 'Virtual Fence Polygon Breach Confirmed', active: true },
-    { num: '05', title: 'CROSS-CAMERA CORRELATION', detail: 'Spatial Path: CAM-039 ➔ CAM-041 ➔ CAM-042', active: true },
-    { num: '06', title: 'THREAT SCORE 91 / 100', detail: 'Critical Security Alert Generated', active: true }
+    { num: '01', title: 'VIDEO INGESTION & BUFFER', detail: 'RTSP IP Cameras ➔ Redis Stream Queue' },
+    { num: '02', title: 'CENTRAL AI PERCEPTION', detail: 'YOLOv8 BBoxes • Person P-014 Detected' },
+    { num: '03', title: 'TRACKING & GEOFENCING', detail: 'ByteTrack Persistent ID • Restricted Zone A' },
+    { num: '04', title: 'CROSS-CAM & INTEL FUSION', detail: 'Watchlist Match + Multi-Cam Handoff', active: true },
+    { num: '05', title: 'THREAT FUSION ENGINE', detail: 'Multi-Signal Scoring: 95/100 (Critical)', active: true },
+    { num: '06', title: 'OLLAMA LLM & DISPATCH', detail: 'Mistral Assessment ➔ Command Center & MLOps', active: true }
   ];
 
   return (
-    <div className="bg-surface border border-border rounded p-3 space-y-2 shrink-0">
-      <div className="text-[10px] font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-        <span>⚙️</span> AI MULTI-SIGNAL CORRELATION PIPELINE
+    <div className="bg-surface border border-border rounded p-3 space-y-2 shrink-0 shadow-md">
+      <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider text-slate-300">
+        <div className="flex items-center gap-1.5">
+          <Workflow className="w-3.5 h-3.5 text-sky-400" />
+          <span>AI MULTI-SIGNAL ARCHITECTURE PIPELINE</span>
+        </div>
+        {onOpenFullArchitecture && (
+          <button
+            onClick={onOpenFullArchitecture}
+            className="text-[9px] text-sky-400 hover:text-sky-300 font-mono font-bold flex items-center gap-1 hover:underline"
+          >
+            FULL FLOW <ArrowRight className="w-3 h-3" />
+          </button>
+        )}
       </div>
       <div className="space-y-1.5">
         {steps.map(step => (
@@ -30,7 +46,7 @@ export const AICorrelationFlow: React.FC = () => {
             <span className="font-mono font-bold text-slate-400 w-4">{step.num}</span>
             <div className="flex-1">
               <div className="font-semibold">{step.title}</div>
-              <div className="text-[9px] text-slate-400">{step.detail}</div>
+              <div className="text-[9px] text-slate-400 font-mono">{step.detail}</div>
             </div>
           </div>
         ))}
@@ -38,3 +54,4 @@ export const AICorrelationFlow: React.FC = () => {
     </div>
   );
 };
+

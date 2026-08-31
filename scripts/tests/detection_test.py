@@ -1,4 +1,4 @@
-﻿# ============================================================
+# ============================================================
 # IBVAP - Fixed Detection Dashboard
 # ============================================================
 
@@ -80,22 +80,27 @@ def generate_frames():
             # Plot results
             annotated = results[0].plot()
             
-            # Count detections
+            # Count detections & overlay crisp green bounding boxes
             detection_count = 0
-            if results[0].boxes is not None:
-                detection_count = len(results[0].boxes)
+            if results[0].boxes is not None and len(results[0].boxes) > 0:
+                boxes = results[0].boxes
+                detection_count = len(boxes)
                 
-                # Add detection info
+                for idx, box in enumerate(boxes):
+                    xyxy = box.xyxy[0].cpu().numpy().astype(int)
+                    x1, y1, x2, y2 = xyxy[0], xyxy[1], xyxy[2], xyxy[3]
+                    cls_id = int(box.cls[0])
+                    conf = float(box.conf[0])
+                    class_name = model.names[cls_id]
+                    
+                    # High visibility bright GREEN box (0, 255, 0)
+                    cv2.rectangle(annotated, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                    cv2.putText(annotated, f"{class_name} {int(conf * 100)}%", (x1, max(15, y1 - 8)),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+                
+                # Add detection summary header
                 cv2.putText(annotated, f"Detections: {detection_count}", (10, 30), 
                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-                
-                # Show class names
-                if detection_count > 0:
-                    classes = results[0].boxes.cls.cpu().numpy()
-                    for i, cls in enumerate(classes):
-                        class_name = model.names[int(cls)]
-                        cv2.putText(annotated, f"{class_name}", (10, 60 + i*25), 
-                                   cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
             
             cv2.putText(annotated, f"Frame: {frame_count}", (10, 150), 
                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)

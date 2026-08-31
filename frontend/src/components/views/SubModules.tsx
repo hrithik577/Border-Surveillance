@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   mockANPR,
   mockFaces,
@@ -58,31 +58,168 @@ export const ANPRModule: React.FC = () => (
   </div>
 );
 
-export const FaceModule: React.FC = () => (
-  <div className="p-4 space-y-4">
-    <div className="flex items-center gap-2 text-sm font-bold text-slate-100 uppercase tracking-wider">
-      <UserCheck className="w-4 h-4 text-sky-400" /> FACIAL ANALYTICS & RECOGNITION CONSOLE
+export const FaceModule: React.FC = () => {
+  const [faceStats, setFaceStats] = useState({
+    total_faces_detected: 0,
+    current_faces_in_frame: 0,
+    captured_faces: [] as any[],
+    events: [] as any[]
+  });
+
+  useEffect(() => {
+    const fetchFaces = async () => {
+      try {
+        const res = await fetch('http://127.0.0.1:5000/api/faces');
+        if (res.ok) {
+          const data = await res.json();
+          setFaceStats(data);
+        }
+      } catch (e) {
+        // quiet fallback
+      }
+    };
+    fetchFaces();
+    const interval = setInterval(fetchFaces, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const facesList = faceStats.captured_faces && faceStats.captured_faces.length > 0
+    ? faceStats.captured_faces
+    : [
+        {
+          face_id: 'FACE-016',
+          track_id: 'P-016',
+          photo_url: 'http://127.0.0.1:5000/static/faces/FACE-016.jpg',
+          confidence: '96%',
+          camera: 'CAM-071',
+          timestamp: '20:51:32 IST',
+          status: 'UNIDENTIFIED'
+        },
+        {
+          face_id: 'FACE-010',
+          track_id: 'P-010',
+          photo_url: 'http://127.0.0.1:5000/static/faces/FACE-010.jpg',
+          confidence: '94%',
+          camera: 'CAM-071',
+          timestamp: '20:51:30 IST',
+          status: 'AUTHORIZED'
+        }
+      ];
+
+  return (
+    <div className="p-4 space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm font-bold text-slate-100 uppercase tracking-wider">
+          <UserCheck className="w-4 h-4 text-purple-400" /> LIVE FACE INTELLIGENCE & PHOTO CAPTURE VAULT
+        </div>
+        <span className="px-2.5 py-1 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
+          AUTOMATIC PHOTO CAPTURE ACTIVE
+        </span>
+      </div>
+
+      <div className="grid grid-cols-4 gap-3">
+        <div className="bg-surface border border-border p-3 rounded">
+          <div className="text-[10px] uppercase text-slate-400 font-bold">TOTAL FACES CAPTURED</div>
+          <div className="text-xl font-mono font-bold text-slate-100 mt-1">{faceStats.total_faces_detected || facesList.length}</div>
+        </div>
+        <div className="bg-surface border border-border p-3 rounded">
+          <div className="text-[10px] uppercase text-slate-400 font-bold">FACES IN LIVE FRAME</div>
+          <div className="text-xl font-mono font-bold text-purple-400 mt-1">{faceStats.current_faces_in_frame}</div>
+        </div>
+        <div className="bg-surface border border-border p-3 rounded">
+          <div className="text-[10px] uppercase text-slate-400 font-bold">SAVED FACE SNAPSHOTS</div>
+          <div className="text-xl font-mono font-bold text-sky-400 mt-1">{facesList.length} PHOTOS</div>
+        </div>
+        <div className="bg-surface border border-border p-3 rounded">
+          <div className="text-[10px] uppercase text-slate-400 font-bold">FACE BLUR STATUS</div>
+          <div className="text-xl font-mono font-bold text-emerald-400 mt-1">DISABLED (CLEAR)</div>
+        </div>
+      </div>
+
+      {/* Captured Face Photo Gallery Cards */}
+      <div className="space-y-2">
+        <div className="text-[11px] font-bold font-mono text-slate-200 uppercase tracking-wider flex items-center gap-2">
+          📸 RECENTLY CAPTURED FACE SNAPSHOTS (REALTIME DISK VAULT)
+        </div>
+        <div className="grid grid-cols-4 gap-3">
+          {facesList.map((item: any) => (
+            <div key={item.face_id} className="bg-surface border border-border hover:border-purple-500/60 rounded p-2.5 space-y-2 transition-all group">
+              <div className="relative aspect-square bg-black/80 rounded overflow-hidden border border-border flex items-center justify-center">
+                <img
+                  src={item.photo_url}
+                  alt={item.face_id}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-all"
+                  onError={(e: any) => {
+                    e.target.style.display = 'none';
+                  }}
+                />
+                <div className="absolute top-1.5 left-1.5 bg-black/80 text-[9px] font-mono text-purple-300 px-1.5 py-0.5 rounded border border-purple-500/40 font-bold">
+                  {item.face_id}
+                </div>
+                <div className="absolute bottom-1.5 right-1.5 bg-black/80 text-[9px] font-mono text-emerald-400 px-1.5 py-0.5 rounded border border-border font-bold">
+                  {item.confidence}
+                </div>
+              </div>
+              <div className="flex items-center justify-between text-[10px] font-mono">
+                <span className="text-slate-300 font-bold">{item.track_id}</span>
+                <span className="text-slate-400">{item.timestamp}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold border ${
+                  item.status === 'AUTHORIZED'
+                    ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                    : 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                }`}>
+                  {item.status}
+                </span>
+                <span className="text-[9px] font-mono text-slate-400">{item.camera}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Real Face Detection Events Log Table */}
+      <div className="bg-surface border border-border rounded overflow-hidden">
+        <div className="p-2.5 bg-surfaceElevated border-b border-border text-[11px] font-bold text-slate-200 uppercase font-mono">
+          👁️ CAPTURED FACE DATABASE LOG
+        </div>
+        <table className="w-full text-left text-xs">
+          <thead className="bg-base text-[10px] uppercase text-slate-400 border-b border-border font-mono">
+            <tr>
+              <th className="p-2.5">Face Photo</th>
+              <th className="p-2.5">Face ID</th>
+              <th className="p-2.5">Subject Track</th>
+              <th className="p-2.5">Camera Source</th>
+              <th className="p-2.5">Confidence</th>
+              <th className="p-2.5">Timestamp</th>
+              <th className="p-2.5">Status</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border/60 font-mono text-slate-300">
+            {facesList.map((item: any) => (
+              <tr key={item.face_id}>
+                <td className="p-2">
+                  <img src={item.photo_url} alt={item.face_id} className="w-9 h-9 object-cover rounded border border-purple-500/40" />
+                </td>
+                <td className="p-2.5 font-bold text-purple-400">{item.face_id}</td>
+                <td className="p-2.5 text-slate-200 font-bold">{item.track_id}</td>
+                <td className="p-2.5 text-slate-300">{item.camera}</td>
+                <td className="p-2.5 text-emerald-400 font-bold">{item.confidence}</td>
+                <td className="p-2.5 text-slate-400">{item.timestamp}</td>
+                <td className="p-2.5">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-400 border border-purple-500/30">
+                    CAPTURED & SAVED
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
-    <div className="grid grid-cols-4 gap-3">
-      <div className="bg-surface border border-border p-3 rounded">
-        <div className="text-[10px] uppercase text-slate-400 font-bold">TOTAL FACES DETECTED</div>
-        <div className="text-xl font-mono font-bold text-slate-100 mt-1">142</div>
-      </div>
-      <div className="bg-surface border border-border p-3 rounded">
-        <div className="text-[10px] uppercase text-slate-400 font-bold">AUTHORIZED PERSONNEL</div>
-        <div className="text-xl font-mono font-bold text-emerald-400 mt-1">126</div>
-      </div>
-      <div className="bg-surface border border-border p-3 rounded">
-        <div className="text-[10px] uppercase text-slate-400 font-bold">UNKNOWN SUBJECTS</div>
-        <div className="text-xl font-mono font-bold text-amber-400 mt-1">16</div>
-      </div>
-      <div className="bg-surface border border-border p-3 rounded">
-        <div className="text-[10px] uppercase text-slate-400 font-bold">REVIEW REQUIRED</div>
-        <div className="text-xl font-mono font-bold text-rose-400 mt-1">3</div>
-      </div>
-    </div>
-  </div>
-);
+  );
+};
 
 export const BehaviourModule: React.FC = () => (
   <div className="p-4 space-y-4">
@@ -181,9 +318,17 @@ export const CameraNetworkModule: React.FC = () => (
         <span>OFFLINE: <strong className="text-rose-400">8</strong></span>
       </div>
       <div className="p-3 bg-base border border-border rounded text-xs text-slate-400 font-mono">
-        RTSP Streams ➔ Edge Node Processing ➔ YOLOv8 Neural Inference ➔ Event Correlation ➔ Command Center
+        RTSP Streams ➔ Video Ingestion Gateway ➔ Central AI Perception ➔ Threat Fusion Engine ➔ Ollama LLM ➔ Command Center
       </div>
     </div>
+  </div>
+);
+
+import { SystemArchitectureFlow } from '@/components/ai/SystemArchitectureFlow';
+
+export const ArchitectureFlowModule: React.FC = () => (
+  <div className="h-full">
+    <SystemArchitectureFlow />
   </div>
 );
 

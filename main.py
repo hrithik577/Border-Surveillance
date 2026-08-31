@@ -1,13 +1,15 @@
 import sys
-sys.stdout.reconfigure(encoding='utf-8')
-#!/usr/bin/env python
-# ============================================================
-# IBVAP - Intelligent Border Video Analytics Platform
-# Main Entry Point
-# ============================================================
-
-import sys
 import os
+import subprocess
+
+sys.stdout.reconfigure(encoding='utf-8')
+
+# Target Python 3.11 with PyTorch 2.11.0+cu128 CUDA 12.8 (RTX 5050)
+target_python = r"C:\Users\bhrit\AppData\Local\Programs\Python\Python311\python.exe"
+if os.path.exists(target_python) and not os.environ.get("IBVAP_PY311_ACTIVE"):
+    if os.path.normcase(os.path.realpath(sys.executable)) != os.path.normcase(os.path.realpath(target_python)):
+        os.environ["IBVAP_PY311_ACTIVE"] = "1"
+        os.execv(target_python, [target_python] + sys.argv)
 
 # Add src directory to python module resolution path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
